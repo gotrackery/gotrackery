@@ -21,6 +21,7 @@ jobs:
 
       - name: Run linters
         run: |
+          go mod tidy
           make install-tools
           go vet ./...
           staticcheck ./...
