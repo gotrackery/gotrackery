@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/gookit/event"
 	"github.com/gotrackery/gotrackery/internal/protocol/detector"
@@ -30,6 +31,8 @@ type Player struct {
 	InPath    string
 	FileMask  string
 	Workers   int
+	Delay     int
+	Timeouts  time.Duration
 	splitFunc bufio.SplitFunc
 }
 
@@ -54,6 +57,15 @@ func (p *Player) Load(f *pflag.FlagSet) (err error) {
 	p.Workers, err = f.GetInt("nums")
 	if err != nil {
 		return fmt.Errorf("failed to get nums: %w", err)
+	}
+	if t, err := f.GetInt("timeouts"); err != nil {
+		return fmt.Errorf("failed to get timeouts: %w", err)
+	} else {
+		p.Timeouts = time.Duration(t) * time.Second
+	}
+	p.Delay, err = f.GetInt("delay")
+	if err != nil {
+		return fmt.Errorf("failed to get delay: %w", err)
 	}
 
 	if p.Proto == detector.Proto {

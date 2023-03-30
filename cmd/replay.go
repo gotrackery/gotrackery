@@ -32,7 +32,7 @@ var replayCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to validate player config: %w", err)
 		}
-		player := tcp.NewReplayer(c.Address, c.GetSplitFunc())
+		player := tcp.NewReplayer(c.Address, c.GetSplitFunc()).SetTimeouts(c.Timeouts).SetDelay(c.Delay)
 		replayer.Run(c.InPath, c.FileMask, player, c.Workers)
 
 		return nil
@@ -42,7 +42,13 @@ var replayCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(replayCmd)
 
-	replayCmd.PersistentFlags().StringP("in", "i", "./in", "path to input file: ./in_files")
-	replayCmd.PersistentFlags().StringP("mask", "m", "*", "file mask: *.csv")
-	replayCmd.PersistentFlags().IntP("nums", "n", 200, "number of emulating devices: 10")
+	replayCmd.PersistentFlags().StringP("in", "i", "./in",
+		"path to input files: -i ./in_files")
+	replayCmd.PersistentFlags().StringP("mask", "m", "*", "file mask: -m *.csv")
+	replayCmd.PersistentFlags().IntP("nums", "n", 200,
+		"number of emulating devices: -n 10")
+	replayCmd.PersistentFlags().IntP("timeouts", "t", 10,
+		"network timeouts in seconds: -t 10")
+	replayCmd.PersistentFlags().IntP("delay", "d", 100,
+		"max random delay between sending packets in milliseconds: -d 100")
 }

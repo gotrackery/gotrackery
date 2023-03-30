@@ -17,22 +17,41 @@ var _ replayer.Replayer = (*Replayer)(nil)
 
 // Replayer is replayer previously recorded data of TCP protocols.
 type Replayer struct {
-	splitter bufio.SplitFunc
-	addr     string
-	// dialTimeout  time.Duration
-	// readTimeout  time.Duration
-	// writeTimeout time.Duration
-	// packetDelay  time.Duration
+	splitter     bufio.SplitFunc
+	addr         string
+	dialTimeout  time.Duration
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+	packetDelay  int
 }
 
 // NewReplayer creates new instance of Replayer.
 // Provide server address to where data will be sent and splitter to send package by package with delay between.
 // It is possible but not recommended to use splitter by EOF to send whole file as one package.
 func NewReplayer(address string, splitter bufio.SplitFunc) *Replayer {
-	return &Replayer{addr: address, splitter: splitter}
+	return &Replayer{
+		addr:         address,
+		splitter:     splitter,
+		dialTimeout:  10 * time.Second,
+		readTimeout:  10 * time.Second,
+		writeTimeout: 10 * time.Second,
+		packetDelay:  100,
+	}
 }
 
-// Replay sends data from file with given filename to server.
+func (p *Replayer) SetTimeouts(to time.Duration) *Replayer {
+	p.dialTimeout = to
+	p.readTimeout = to
+	p.writeTimeout = to
+	return p
+}
+
+func (p *Replayer) SetDelay(milsecs int) *Replayer {
+	p.packetDelay = milsecs
+	return p
+}
+
+// Replay sends data from a file with given filename to a server.
 func (p *Replayer) Replay(filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -45,7 +64,7 @@ func (p *Replayer) Replay(filename string) error {
 		}
 	}()
 
-	d := net.Dialer{Timeout: 10 * time.Second}
+	d := net.Dialer{Timeout: p.dialTimeout}
 
 	conn, err := d.Dial("tcp", p.addr)
 	if err != nil {
@@ -67,13 +86,16 @@ func (p *Replayer) Replay(filename string) error {
 		t := time.Now()
 		b := scanner.Bytes()
 		log.Debug().Str("payload", hex.EncodeToString(b)).Msg("sending")
+		if err = conn.SetWriteDeadline(time.Now().Add(p.writeTimeout)); err != nil {
+			return err
+		}
 		_, err = conn.Write(scanner.Bytes())
 		if err != nil {
 			log.Error().Err(err).Str("filename", filename).Msg("writing")
 			return nil
 		}
 
-		if err = conn.SetReadDeadline(time.Now().Add(time.Second * 10)); err != nil {
+		if err = conn.SetReadDeadline(time.Now().Add(p.readTimeout)); err != nil {
 			return err
 		}
 		resp, err := p.readResponse(conn)
@@ -86,7 +108,7 @@ func (p *Replayer) Replay(filename string) error {
 			Str("response", hex.EncodeToString(resp)).
 			Dur("elapsed", time.Since(t)).
 			Msg("got reply")
-		time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+		time.Sleep(time.Duration(rand.Intn(p.packetDelay)) * time.Millisecond)
 	}
 	return nil
 }
