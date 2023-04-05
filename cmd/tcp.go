@@ -4,8 +4,11 @@ import (
 	"fmt"
 
 	"github.com/gotrackery/gotrackery/cfg"
-	"github.com/gotrackery/gotrackery/internal/tcp"
+	"github.com/gotrackery/gotrackery/internal"
+	"github.com/gotrackery/gotrackery/internal/protocol/egts"
+	"github.com/gotrackery/gotrackery/internal/tcp/server"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // tcpCmd represents the tcp command.
@@ -17,21 +20,30 @@ var tcpCmd = &cobra.Command{
  You can replay (see replay command) recorded data from another server.
 
 Example:
- gotr tcp -p egts -a :5001 --traccar "postgres://postgres:postgres@localhost:5432/traccar?sslmode=disable"`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		var c cfg.TCPServer
-		err := c.Load(cmd.Flags())
-		if err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
-		}
+ gotr tcp -p egts -a :5001 --sample_db "postgres://postgres:postgres@localhost:5432/sample_db?sslmode=disable"`,
+	PreRun: func(cmd *cobra.Command, args []string) {
+		_ = viper.BindPFlag("tcp.address", rootCmd.PersistentFlags().Lookup("address"))
+		_ = viper.BindPFlag("tcp.proto", rootCmd.PersistentFlags().Lookup("proto"))
+		_ = viper.BindPFlag("tcp.timeouts", rootCmd.PersistentFlags().Lookup("timeouts"))
 
-		srv, err := tcp.NewServer(logger, c.Address)
+		viper.SetDefault("tcp.address", ":5001")
+		viper.SetDefault("tcp.proto", egts.Proto)
+		viper.SetDefault("tcp.timeouts", 10)
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := cfg.Load()
+		if err != nil {
+			return fmt.Errorf("loading config in tcp command: %w", err)
+		}
+		logger = internal.NewLogger(c.Log.ZerologLevel(), c.Log.Console)
+
+		srv, err := server.NewServer(logger, c.TCPServer.Address)
 		if err != nil {
 			return fmt.Errorf("failed to create tcp server: %w", err)
 		}
 
-		srv.SetProtocol(c.GetProtocol())
-		cons, err := c.GetConsumers(&logger)
+		srv.SetProtocol(c.TCPServer.GetProtocol())
+		cons, err := c.Consumers.GetConsumers(&logger)
 		if err != nil {
 			return fmt.Errorf("failed to get consumers: %w", err)
 		}

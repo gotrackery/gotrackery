@@ -1,4 +1,4 @@
-package replayer
+package player
 
 import (
 	"context"
@@ -7,20 +7,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Replayer is interface to replay original data from provided filename.
-type Replayer interface {
-	Replay(filename string) error
+// Player is interface to replay original data from provided filename.
+type Player interface {
+	Play(filename string) error
 }
 
 // Consumer consumes a batch of files to process then concurrently.
 type Consumer struct {
 	filenames *chan string
 	jobs      chan string
-	replayer  Replayer
+	replayer  Player
 }
 
 // NewConsumer creates instance of Consumer with given parameters.
-func NewConsumer(l *chan string, j chan string, r Replayer) *Consumer {
+func NewConsumer(l *chan string, j chan string, r Player) *Consumer {
 	c := &Consumer{filenames: l, jobs: j, replayer: r}
 	return c
 }
@@ -32,7 +32,7 @@ func (c *Consumer) Work(wg *sync.WaitGroup) {
 		if job == "" {
 			return
 		}
-		err := c.replayer.Replay(job)
+		err := c.replayer.Play(job)
 		if err != nil {
 			log.Error().Err(err).Str("job", job).Msg("replay failed")
 			return

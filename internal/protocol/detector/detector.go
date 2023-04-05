@@ -7,12 +7,12 @@ import (
 	"github.com/gotrackery/gotrackery/internal"
 	"github.com/gotrackery/gotrackery/internal/protocol/egts"
 	"github.com/gotrackery/gotrackery/internal/protocol/wialonips"
-	"github.com/gotrackery/gotrackery/internal/tcp"
+	"github.com/gotrackery/gotrackery/internal/tcp/server"
 	egts2 "github.com/gotrackery/protocol/egts"
 	ips "github.com/gotrackery/protocol/wialonips"
 )
 
-var _ tcp.Protocol = (*Detector)(nil)
+var _ server.Protocol = (*Detector)(nil)
 
 const (
 	Proto        = "detector"
@@ -42,7 +42,7 @@ func (d *Detector) GetSplitFunc() bufio.SplitFunc {
 	return GetSplitFunc()
 }
 
-func (d *Detector) Respond(s *internal.Session, bytes []byte) (res tcp.Result, err error) {
+func (d *Detector) Respond(s *internal.Session, bytes []byte) (res server.Result, err error) {
 	d.detectedProto = protoDetector(bytes)
 	s.SetDevice(d.detectedProto)
 	res.CloseSession = false // let it close by timeout

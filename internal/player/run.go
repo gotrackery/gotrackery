@@ -1,4 +1,4 @@
-package replayer
+package player
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 )
 
 // Run starts replaying files from given path that satisfy mask with nConsumers goroutines.
-func Run(path, mask string, replayer Replayer, nConsumers int) {
+func Run(path, mask string, replayer Player, nConsumers int) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	quit := make(chan interface{})
 

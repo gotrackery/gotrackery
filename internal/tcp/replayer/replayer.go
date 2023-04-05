@@ -1,4 +1,4 @@
-package tcp
+package replayer
 
 import (
 	"bufio"
@@ -9,11 +9,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/gotrackery/gotrackery/internal/replayer"
+	"github.com/gotrackery/gotrackery/internal/player"
 	"github.com/rs/zerolog/log"
 )
 
-var _ replayer.Replayer = (*Replayer)(nil)
+var _ player.Player = (*Replayer)(nil)
+
+type Option func(*Replayer)
 
 // Replayer is replayer previously recorded data of TCP protocols.
 type Replayer struct {
@@ -28,8 +30,8 @@ type Replayer struct {
 // NewReplayer creates new instance of Replayer.
 // Provide server address to where data will be sent and splitter to send package by package with delay between.
 // It is possible but not recommended to use splitter by EOF to send whole file as one package.
-func NewReplayer(address string, splitter bufio.SplitFunc) *Replayer {
-	return &Replayer{
+func NewReplayer(address string, splitter bufio.SplitFunc, opts ...Option) *Replayer {
+	r := &Replayer{
 		addr:         address,
 		splitter:     splitter,
 		dialTimeout:  10 * time.Second,
@@ -37,22 +39,34 @@ func NewReplayer(address string, splitter bufio.SplitFunc) *Replayer {
 		writeTimeout: 10 * time.Second,
 		packetDelay:  100,
 	}
+	r.Option(opts...)
+	return r
 }
 
-func (p *Replayer) SetTimeouts(to time.Duration) *Replayer {
-	p.dialTimeout = to
-	p.readTimeout = to
-	p.writeTimeout = to
-	return p
+// Option sets the options specified.
+func (p *Replayer) Option(opts ...Option) {
+	for _, opt := range opts {
+		opt(p)
+	}
 }
 
-func (p *Replayer) SetDelay(milsecs int) *Replayer {
-	p.packetDelay = milsecs
-	return p
+func WithTimeouts(to time.Duration) Option {
+	return func(r *Replayer) {
+		r.dialTimeout = to
+		r.readTimeout = to
+		r.writeTimeout = to
+	}
 }
 
-// Replay sends data from a file with given filename to a server.
-func (p *Replayer) Replay(filename string) error {
+func WithDelay(milsecs int) Option {
+	return func(r *Replayer) {
+		r.packetDelay = milsecs
+	}
+}
+
+// Play sends data from a file with given filename to a server.
+// ToDo add ctx to break loop
+func (p *Replayer) Play(filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Error().Err(err).Str("filename", filename).Msg("can't open file")

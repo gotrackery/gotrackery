@@ -1,4 +1,4 @@
-package traccar
+package sampledb
 
 import (
 	"encoding/json"

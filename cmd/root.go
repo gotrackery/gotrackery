@@ -3,21 +3,28 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/gotrackery/gotrackery/internal"
+	"github.com/gotrackery/gotrackery/cfg"
 	"github.com/gotrackery/gotrackery/internal/protocol/egts"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	_ "github.com/spf13/viper/remote"
 )
 
 var (
 	version = "v0.0.1"
 	binary  = "gotr"
-	cfgFile string
-	logger  zerolog.Logger
+)
+
+var (
+	cfgFile    string
+	consulAddr string
+	consulKey  string
+	logger     zerolog.Logger
 )
 
 // rootCmd represents the base command when called without any subcommands.
@@ -44,7 +51,8 @@ Supported Subscribers:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%s (c) Copyright 2023 %s\n", binary, viper.GetString("author")) //nolint:forbidigo
 		fmt.Printf("Version: %s\n\n", version)                                      //nolint:forbidigo
-		return cmd.Help()                                                           //nolint:wrapcheck
+
+		return cmd.Help() //nolint:wrapcheck
 	},
 }
 
@@ -63,46 +71,32 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "",
 		fmt.Sprintf("config file (default is $HOME/.%s.yaml)", binary))
+	rootCmd.PersistentFlags().StringVar(&consulAddr, "consul", "",
+		fmt.Sprintf("consul address (can be passed thru env: %s_CONSUL)", binary))
+	rootCmd.PersistentFlags().StringVar(&consulKey, "consul-key", "",
+		fmt.Sprintf("consul key (can be passed thru env: %s_CONSUL_KEY)", binary))
 	rootCmd.PersistentFlags().StringP("address", "a", ":5001",
 		"server address with port: :5001")
 	rootCmd.PersistentFlags().StringP("proto", "p", egts.Proto,
 		"device protocol to use: egts")
-	rootCmd.PersistentFlags().String("traccar",
-		"",
-		"postgres://postgres:postgres@localhost:5432/traccar?sslmode=disable")
+	rootCmd.PersistentFlags().IntP("timeouts", "t", 10,
+		"network timeouts in seconds: -t 10")
 
 	_ = viper.BindPFlag("author", rootCmd.PersistentFlags().Lookup("author"))
 	viper.SetDefault("author", "GoTrackery Authors")
-
-	logger = internal.NewLogger(zerolog.DebugLevel)
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
-		With().Caller().Stack().Logger()
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
+		With().Caller().Stack().Logger()
 
-		// Search config in home directory with name ".<binary>" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(fmt.Sprintf(".%s", binary))
-	}
-
+	viper.SetEnvPrefix(binary)
+	viper.EnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		_, err = fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-		if err != nil {
-			log.Error().Err(err).Msg("can't write to stderr")
-			return
-		}
+	if consulAddr != "" && consulKey != "" {
+		cfg.InitConsul(consulAddr, consulKey)
 	}
+	cfg.InitFile(binary, cfgFile)
 }

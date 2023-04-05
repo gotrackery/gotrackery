@@ -3,7 +3,6 @@ package cfg
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -12,125 +11,129 @@ import (
 	"github.com/gotrackery/gotrackery/internal/protocol/detector"
 	"github.com/gotrackery/gotrackery/internal/protocol/egts"
 	"github.com/gotrackery/gotrackery/internal/protocol/wialonips"
-	"github.com/gotrackery/gotrackery/internal/tcp"
-	"github.com/gotrackery/gotrackery/internal/traccar"
+	"github.com/gotrackery/gotrackery/internal/sampledb"
+	"github.com/gotrackery/gotrackery/internal/tcp/replayer"
+	"github.com/gotrackery/gotrackery/internal/tcp/server"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
-	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
-var splitFuncs = map[string]bufio.SplitFunc{
-	wialonips.Proto: wialonips.GetSplitFunc(),
-	egts.Proto:      egts.GetSplitFunc(),
+type logging struct {
+	Level   string
+	Console bool
 }
 
-// Player - config for playing previously recorded data.
-type Player struct {
-	Address   string
-	Proto     string
-	InPath    string
-	FileMask  string
-	Workers   int
-	Delay     int
-	Timeouts  time.Duration
-	splitFunc bufio.SplitFunc
+type player struct {
+	Address  string
+	Proto    string
+	InPath   string `mapstructure:"in" yaml:"in"`
+	FileMask string `mapstructure:"mask" yaml:"mask"`
+	Workers  int    `mapstructure:"nums" yaml:"nums"`
+	Delay    int
+	Timeouts int
 }
 
-// Load config values from pflag.FlagSet.
-func (p *Player) Load(f *pflag.FlagSet) (err error) {
-	p.Address, err = f.GetString("address")
-	if err != nil {
-		return fmt.Errorf("failed to get address: %w", err)
+type tcpServer struct {
+	Address            string
+	Proto              string
+	Timeouts           int
+	SocketReusePort    bool `mapstructure:"socket-reuse-port" yaml:"socket-reuse-port"`
+	SocketFastOpen     bool `mapstructure:"socket-fast-open" yaml:"socket-fast-open"`
+	SocketDeferAccept  bool `mapstructure:"socket-defer-accept" yaml:"socket-defer-accept"`
+	Loops              int
+	WorkerpoolShards   int  `mapstructure:"workerpool-shards" yaml:"workerpool-shards"`
+	AllowThreadLocking bool `mapstructure:"allow-thread-locking" yaml:"allow-thread-locking"`
+}
+
+type samplePGDatabase struct {
+	URI string
+}
+
+type consumers struct {
+	SamplePG samplePGDatabase `mapstructure:"sample-db" yaml:"sample-db"`
+}
+
+type Config struct {
+	Log       logging
+	Player    player
+	TCPServer tcpServer `mapstructure:"tcp" yaml:"tcp"`
+	Consumers consumers
+}
+
+func Load() (*Config, error) {
+	var c Config
+	if err := viper.Unmarshal(&c); err != nil {
+		return nil, fmt.Errorf("loading config: %w", err)
 	}
-	p.Proto, err = f.GetString("proto")
-	if err != nil {
-		return fmt.Errorf("failed to get proto: %w", err)
+	if err := c.Player.validate(); err != nil {
+		return nil, fmt.Errorf("validate player config: %w", err)
 	}
-	p.InPath, err = f.GetString("in")
-	if err != nil {
-		return fmt.Errorf("failed to get in: %w", err)
+	return &c, nil
+}
+
+/* logging methods */
+
+func (l logging) ZerologLevel() zerolog.Level {
+	switch l.Level {
+	case "trace":
+		return zerolog.TraceLevel
+	case "debug":
+		return zerolog.DebugLevel
+	case "info":
+		return zerolog.InfoLevel
+	case "warn":
+		return zerolog.WarnLevel
+	case "error":
+		return zerolog.ErrorLevel
+	default:
+		return zerolog.InfoLevel
 	}
-	p.FileMask, err = f.GetString("mask")
-	if err != nil {
-		return fmt.Errorf("failed to get mask: %w", err)
+}
+
+/* player methods */
+
+func (p player) GetOptions() []replayer.Option {
+	o := make([]replayer.Option, 0, 2)
+	if viper.IsSet("player.delay") {
+		o = append(o, replayer.WithDelay(p.Delay))
 	}
-	p.Workers, err = f.GetInt("nums")
-	if err != nil {
-		return fmt.Errorf("failed to get nums: %w", err)
+	if viper.IsSet("player.timeouts") {
+		o = append(o, replayer.WithTimeouts(time.Duration(p.Timeouts)*time.Second))
 	}
-	if t, err := f.GetInt("timeouts"); err != nil {
-		return fmt.Errorf("failed to get timeouts: %w", err)
-	} else {
-		p.Timeouts = time.Duration(t) * time.Second
-	}
-	p.Delay, err = f.GetInt("delay")
-	if err != nil {
-		return fmt.Errorf("failed to get delay: %w", err)
+	return o
+}
+
+// GetSplitFunc returns bufio.SplitFunc for bufio.Scanner.
+// If protocol is not defined it will return bufio.ScanLines.
+func (p player) GetSplitFunc() bufio.SplitFunc {
+	var splitFuncs = map[string]bufio.SplitFunc{
+		wialonips.Proto: wialonips.GetSplitFunc(),
+		egts.Proto:      egts.GetSplitFunc(),
 	}
 
 	if p.Proto == detector.Proto {
-		p.splitFunc = detector.NewProtocolScanner().ScanProtocol
-		return nil
+		return detector.NewProtocolScanner().ScanProtocol
 	}
 
-	var ok bool
-	if p.splitFunc, ok = splitFuncs[p.Proto]; !ok {
-		return errors.New("invalid protocol")
+	if splitFunc, ok := splitFuncs[p.Proto]; ok {
+		return splitFunc
 	}
-	return nil
+	return bufio.ScanLines
 }
 
-func (p *Player) Validate() error {
+func (p player) validate() error {
 	err := pathExists(p.InPath)
 	if err != nil {
-		return fmt.Errorf("invalid in path: %w", err)
+		return fmt.Errorf("validate InPath: %w", err)
 	}
 	return nil
 }
 
-func pathExists(path string) error {
-	_, err := os.Stat(path)
-	if err == nil {
-		return nil
-	}
-	if os.IsNotExist(err) {
-		return fmt.Errorf("invalid path: %s", path)
-	}
-	return err
-
-}
-
-// GetSplitFunc returns function for splitting data for emulating sending data by packages.
-func (p *Player) GetSplitFunc() bufio.SplitFunc {
-	return p.splitFunc
-}
-
-// TCPServer - config for TCP server that receives and handles TCP protocols.
-type TCPServer struct {
-	Address   string
-	Proto     string
-	TraccarDB string
-}
-
-// Load config values from pflag.FlagSet.
-func (s *TCPServer) Load(f *pflag.FlagSet) (err error) {
-	s.Address, err = f.GetString("address")
-	if err != nil {
-		return fmt.Errorf("failed to get address: %w", err)
-	}
-	s.Proto, err = f.GetString("proto")
-	if err != nil {
-		return fmt.Errorf("failed to get proto: %w", err)
-	}
-	s.TraccarDB, err = f.GetString("traccar")
-	if err != nil {
-		return fmt.Errorf("failed to get traccar db: %w", err)
-	}
-	return nil
-}
+/* tcp server methods */
 
 // GetProtocol returns protocol handler according Proto property.
-func (s *TCPServer) GetProtocol() tcp.Protocol {
+func (s tcpServer) GetProtocol() server.Protocol {
 	switch s.Proto {
 	case detector.Proto:
 		return detector.NewDetector([]byte{})
@@ -142,25 +145,82 @@ func (s *TCPServer) GetProtocol() tcp.Protocol {
 	return egts.NewEGTS()
 }
 
-// GetConsumers returns slice of event listeners to consume parsed and unified data that received by server.
-func (s *TCPServer) GetConsumers(l *zerolog.Logger) (listeners []event.Listener, err error) {
-	if s.TraccarDB == "" {
-		return
+func (s tcpServer) GetOptions() []server.Option {
+	o := make([]server.Option, 0, 2)
+	if viper.IsSet("tcp.timeouts") {
+		o = append(o, server.WithTimeout(time.Duration(s.Timeouts)*time.Second))
+	}
+	if viper.IsSet("tcp.socket-reuse-port") {
+		o = append(o, server.WithSocketReusePort(s.SocketReusePort))
+	}
+	if viper.IsSet("tcp.socket-fast-open") {
+		o = append(o, server.WithSocketFastOpen(s.SocketFastOpen))
+	}
+	if viper.IsSet("tcp.socket-defer-accept") {
+		o = append(o, server.WithSocketDeferAccept(s.SocketDeferAccept))
+	}
+	if viper.IsSet("tcp.loops") {
+		o = append(o, server.WithLoops(s.Loops))
+	}
+	if viper.IsSet("tcp.workerpool-shards") {
+		o = append(o, server.WithWorkerpoolShards(s.WorkerpoolShards))
+	}
+	if viper.IsSet("tcp.allow-thread-locking") {
+		o = append(o, server.WithAllowThreadLocking(s.AllowThreadLocking))
+	}
+	return o
+}
+
+/* consumers methods */
+
+func (c consumers) GetConsumers(l *zerolog.Logger) (lsnr []event.Listener, err error) {
+	lsnr = make([]event.Listener, 0)
+	sampleDB, err := c.SamplePG.GetConsumer(l)
+	if err != nil {
+		return nil, fmt.Errorf("get sample db consumer: %w", err)
+	}
+	if sampleDB != nil {
+		lsnr = append(lsnr, sampleDB)
+	}
+	return lsnr, nil
+}
+
+func (s samplePGDatabase) GetConsumer(l *zerolog.Logger) (lsnr event.Listener, err error) {
+	if !viper.IsSet("sample-db.uri") {
+		return nil, nil
 	}
 
 	var (
 		p  *pgxpool.Pool
-		db *traccar.DB
+		db *sampledb.DB
 	)
-	p, err = pgxpool.New(context.Background(), s.TraccarDB)
+	ctx := context.Background()
+	p, err = pgxpool.New(ctx, s.URI)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to traccar db: %w", err)
+		return nil, fmt.Errorf("connect to sample db: %w", err)
+	}
+	err = p.Ping(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ping sample db: %w", err)
 	}
 
-	db, err = traccar.NewDB(l, p)
+	db, err = sampledb.NewDB(l, p)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create traccar listener: %w", err)
+		return nil, fmt.Errorf("create sample listener: %w", err)
 	}
-	listeners = append(listeners, db)
-	return listeners, nil
+	return db, nil
+}
+
+/* utils */
+
+func pathExists(path string) error {
+	fmt.Println("path:", path)
+	_, err := os.Stat(path)
+	if err == nil {
+		return nil
+	}
+	if os.IsNotExist(err) {
+		return fmt.Errorf("invalid path: %s", path)
+	}
+	return err
 }

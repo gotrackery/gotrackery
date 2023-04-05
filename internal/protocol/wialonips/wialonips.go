@@ -4,7 +4,7 @@ import (
 	"bufio"
 
 	"github.com/gotrackery/gotrackery/internal"
-	"github.com/gotrackery/gotrackery/internal/tcp"
+	"github.com/gotrackery/gotrackery/internal/tcp/server"
 	"github.com/gotrackery/protocol"
 	"github.com/gotrackery/protocol/wialonips"
 )
@@ -14,7 +14,7 @@ const (
 	ctxVersion = "version"
 )
 
-var _ tcp.Protocol = (*WialonIPS)(nil)
+var _ server.Protocol = (*WialonIPS)(nil)
 
 // GetSplitFunc returns the split function for the WialonIPS protocol.
 func GetSplitFunc() bufio.SplitFunc {
@@ -41,7 +41,7 @@ func (w *WialonIPS) GetSplitFunc() bufio.SplitFunc {
 }
 
 // Respond returns the result of parsing the WialonIPS data.
-func (w *WialonIPS) Respond(s *internal.Session, bytes []byte) (res tcp.Result, err error) {
+func (w *WialonIPS) Respond(s *internal.Session, bytes []byte) (res server.Result, err error) {
 	pkg := wialonips.NewPackage(w.getVersion(s), s.GetDevice())
 	err = pkg.Decode(bytes)
 	if pkg.Type == wialonips.LoginPacket {

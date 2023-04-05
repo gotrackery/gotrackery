@@ -1,9 +1,10 @@
-package tcp
+package server
 
 import (
 	"bufio"
 	"encoding/hex"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/gotrackery/gotrackery/internal"
@@ -139,6 +140,10 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 				l.Error().Err(err).Msg("fire event")
 			}
 		}
+	}
+	if scanner.Err() != nil && scanner.Err() != io.EOF {
+		l.Error().Err(scanner.Err()).Msg("scanner error")
+		return
 	}
 }
 

@@ -6,11 +6,11 @@ import (
 	"strconv"
 
 	"github.com/gotrackery/gotrackery/internal"
-	"github.com/gotrackery/gotrackery/internal/tcp"
+	"github.com/gotrackery/gotrackery/internal/tcp/server"
 	"github.com/gotrackery/protocol/egts"
 )
 
-var _ tcp.Protocol = (*EGTS)(nil)
+var _ server.Protocol = (*EGTS)(nil)
 
 const (
 	Proto = "egts"
@@ -35,7 +35,7 @@ func (e *EGTS) GetSplitFunc() bufio.SplitFunc {
 	return GetSplitFunc()
 }
 
-func (e *EGTS) Respond(s *internal.Session, bytes []byte) (res tcp.Result, err error) {
+func (e *EGTS) Respond(s *internal.Session, bytes []byte) (res server.Result, err error) {
 	pkg := egts.Package{}
 	_ = pkg.Decode(bytes)
 
@@ -46,7 +46,7 @@ func (e *EGTS) Respond(s *internal.Session, bytes []byte) (res tcp.Result, err e
 
 	res.Response, err = pkg.Response()
 	if err != nil {
-		return tcp.Result{CloseSession: true}, fmt.Errorf("got error on response: %s", err)
+		return server.Result{CloseSession: true}, fmt.Errorf("got error on response: %s", err)
 	}
 	res.GenericAdapter = Adapter{Package: &pkg}
 	return
