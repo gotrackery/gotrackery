@@ -44,23 +44,34 @@ func TestMarshalConfig(t *testing.T) {
 	}
 	b, err := yaml.Marshal(&cfg)
 	require.NoError(t, err)
-	fmt.Println(string(b))
+	fmt.Sprintln(string(b))
 }
 
 func TestUnmarshalConfig(t *testing.T) {
-	txt := []byte(`player:
-  address: 100.20.3.44:5678
-  proto: egts
-  in: /tmp/cap/egts/out
-  nums: 1
-  timeouts: 1
+	txt := []byte(`log:
+    level: info
+    console: false
+player:
+    address: 100.20.3.44:5678
+    proto: egts
+    in: /tmp/cap/egts/out
+    mask: '*.data'
+    nums: 1
+    delay: 1
+    timeouts: 1
 tcp:
-  address: 100.20.3.44:5678
-  proto: egts
-  socket_reuse_port: true
-  socket_fast_open: false
-  socket_defer_accept: true
-  workerpool_shards: 1
+    address: 100.20.3.44:5678
+    proto: egts
+    timeouts: 0
+    socket-reuse-port: true
+    socket-fast-open: false
+    socket-defer-accept: false
+    loops: 1
+    workerpool-shards: 1
+    allow-thread-locking: false
+consumers:
+    sample-db:
+        uri: postgres://postgres:postgres@localhost:5432/traccar?sslmode=disable
 `)
 	viper.SetConfigType("yaml")
 	err := viper.ReadConfig(bytes.NewBuffer(txt))
@@ -68,6 +79,4 @@ tcp:
 	var cfg Config
 	err = viper.Unmarshal(&cfg)
 	require.NoError(t, err)
-	fmt.Println(cfg)
-	fmt.Println(viper.IsSet("sample_db.uri"))
 }

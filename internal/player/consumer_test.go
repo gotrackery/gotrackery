@@ -46,10 +46,13 @@ func TestConsumer_Consume(t *testing.T) {
 }
 
 type mockPlayer struct {
+	mux      sync.Mutex
 	filename string
 }
 
 func (m *mockPlayer) Play(filename string) error {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	m.filename = filename
 	return nil
 }
