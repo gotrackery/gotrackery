@@ -66,9 +66,6 @@ func Load() (*Config, error) {
 	if err := viper.Unmarshal(&c); err != nil {
 		return nil, fmt.Errorf("loading config: %w", err)
 	}
-	if err := c.Player.validate(); err != nil {
-		return nil, fmt.Errorf("validate player config: %w", err)
-	}
 	return &c, nil
 }
 
@@ -122,10 +119,10 @@ func (p player) GetSplitFunc() bufio.SplitFunc {
 	return bufio.ScanLines
 }
 
-func (p player) validate() error {
+func (p player) Validate() error {
 	err := pathExists(p.InPath)
 	if err != nil {
-		return fmt.Errorf("validate InPath: %w", err)
+		return fmt.Errorf("Validate InPath: %w", err)
 	}
 	return nil
 }

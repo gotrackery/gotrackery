@@ -46,6 +46,9 @@ var replayCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("loading config in player command: %w", err)
 		}
+		if err := c.Player.Validate(); err != nil {
+			return fmt.Errorf("validate player config: %w", err)
+		}
 
 		fmt.Println("Config:\n", c)
 

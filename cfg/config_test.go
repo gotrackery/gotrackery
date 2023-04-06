@@ -12,7 +12,7 @@ import (
 )
 
 func TestMarshalConfig(t *testing.T) {
-	cfg := config{
+	cfg := Config{
 		Player: player{
 			Address:  "100.20.3.44:5678",
 			Proto:    egts.Proto,
@@ -32,8 +32,14 @@ func TestMarshalConfig(t *testing.T) {
 			WorkerpoolShards:   1,
 			AllowThreadLocking: false,
 		},
-		SamplePG: samplePGDatabase{
-			URI: "postgres://postgres:postgres@localhost:5432/traccar?sslmode=disable",
+		Log: logging{
+			Level:   "info",
+			Console: false,
+		},
+		Consumers: consumers{
+			SamplePG: samplePGDatabase{
+				URI: "postgres://postgres:postgres@localhost:5432/traccar?sslmode=disable",
+			},
 		},
 	}
 	b, err := yaml.Marshal(&cfg)
@@ -55,13 +61,11 @@ tcp:
   socket_fast_open: false
   socket_defer_accept: true
   workerpool_shards: 1
-sample_db:
-  uri: postgres://postgres:postgres@localhost:5432/traccar?sslmode=disable
 `)
 	viper.SetConfigType("yaml")
 	err := viper.ReadConfig(bytes.NewBuffer(txt))
 	require.NoError(t, err)
-	var cfg config
+	var cfg Config
 	err = viper.Unmarshal(&cfg)
 	require.NoError(t, err)
 	fmt.Println(cfg)

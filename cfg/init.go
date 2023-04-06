@@ -35,8 +35,9 @@ func InitFile(binary, cfgFile string) {
 }
 
 func InitConsul(consulAddr, consulKey string) {
-	viper.AddRemoteProvider("consul", consulAddr, consulKey)
+	err := viper.AddRemoteProvider("consul", consulAddr, consulKey)
+	cobra.CheckErr(err)
 	viper.SetConfigType("json")
-	err := viper.ReadRemoteConfig()
+	err = viper.ReadRemoteConfig()
 	cobra.CheckErr(err)
 }
