@@ -24,7 +24,6 @@ jobs:
           go mod tidy
           make install-tools
           go vet ./...
-          staticcheck ./...
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
