@@ -95,7 +95,7 @@ db-drop:
 
 # ==============================================================================
 # Docker commands
-docker-build:
+docker:
 	@docker build \
 	--build-arg APP=$(BINARY) \
 	-t $(IMAGENAME) .
