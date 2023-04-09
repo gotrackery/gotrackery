@@ -25,4 +25,6 @@ ARG APP
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /go/bin/$APP /go/bin/entry
 
+RUN chmod +x /go/bin/entry
+
 ENTRYPOINT ["/go/bin/entry"]
