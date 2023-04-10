@@ -20,6 +20,6 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/bin/gotr ./
 # Start from scratch.
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /go/bin/gotr /go/bin/gotr
+COPY --from=builder /go/bin/gotr /gotrackery/gotr
 
-ENTRYPOINT ["/go/bin/gotr"]
+ENTRYPOINT ["/gotrackery/gotr"]

@@ -3,8 +3,7 @@ name: DockerHub
 on:
   push:
     branches:
-      - '*'
-#      - "main"
+      - "main"
 
 env:
   TEST_TAG: ${{ secrets.DOCKERHUB_USERNAME }}/gotrackery:test

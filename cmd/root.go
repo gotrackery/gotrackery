@@ -46,7 +46,7 @@ Supported commands (protocols):
 - replay
 
 Supported Subscribers:
-- traccar postgres database
+- example postgres database
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%s (c) Copyright 2023 %s\n", binary, viper.GetString("author")) //nolint:forbidigo
