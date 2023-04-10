@@ -20,9 +20,9 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/bin/$APP
 
 # Start from scratch.
-FROM scratch
+FROM bash
 ARG APP
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /go/bin/$APP /go/bin/entry
+COPY --from=builder /go/bin/$APP /go/bin/gotr
 
-ENTRYPOINT ["/go/bin/entry"]
+ENTRYPOINT ["/go/bin/gotr"]

@@ -3,7 +3,8 @@ name: DockerHub
 on:
   push:
     branches:
-      - "main"
+      - '*'
+#      - "main"
 
 env:
   TEST_TAG: ${{ secrets.DOCKERHUB_USERNAME }}/gotrackery:test
@@ -55,4 +56,4 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ secrets.DOCKERHUB_USERNAME }}/gotrackery
           short-description: ${{ github.event.repository.description }}
-          readme-filepath: ./path/to/README.md
+          readme-filepath: ./doc/docker.md

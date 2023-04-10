@@ -104,7 +104,7 @@ docker:
 stop:
 	@docker stop $(IMAGENAME)
 
-start:docker-build
+start:
 	@docker run --rm --name $(IMAGENAME) \
 	-p $(PORT):$(PORT_EXPOSE)/tcp -p $(PORT):$(PORT_EXPOSE)/udp \
 	$(IMAGENAME) tcp -p wialonips -a :$(PORT)
