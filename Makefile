@@ -98,11 +98,14 @@ db-drop:
 docker:
 	@docker build \
 	-t $(IMAGENAME) .
+#	--build-arg MAIN_PATH=$(MAIN_PATH) \
 
 stop:
 	@docker stop $(IMAGENAME)
 
 start:docker
 	@docker run --rm --name $(IMAGENAME) \
+	-e GOTR_CONSUL=localhost:8500 \
+	-e GOTR_CONSUL_KEY=egts \
 	-p $(PORT):$(PORT_EXPOSE)/tcp -p $(PORT):$(PORT_EXPOSE)/udp \
 	$(IMAGENAME) tcp -p wialonips -a :$(PORT)

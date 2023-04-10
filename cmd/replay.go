@@ -66,11 +66,11 @@ var replayCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(replayCmd)
 
-	replayCmd.PersistentFlags().StringP("in", "i", "./in",
+	rootCmd.PersistentFlags().StringP("in", "i", "./in",
 		"path to input files: -i ./in_files")
-	replayCmd.PersistentFlags().StringP("mask", "m", "*", "file mask: -m *.csv")
-	replayCmd.PersistentFlags().IntP("nums", "n", 200,
+	rootCmd.PersistentFlags().StringP("mask", "m", "*", "file mask: -m *.csv")
+	rootCmd.PersistentFlags().IntP("nums", "n", 200,
 		"number of emulating devices: -n 10")
-	replayCmd.PersistentFlags().IntP("delay", "d", 100,
+	rootCmd.PersistentFlags().IntP("delay", "d", 100,
 		"max random delay between sending packets in milliseconds: -d 100")
 }

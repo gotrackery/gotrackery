@@ -1,4 +1,6 @@
 # GoTrackery
+![LintAndTest](https://github.com/gotrackery/gotrackery/actions/workflows/vet.yml/badge.svg)
+
 - 🔭 I’m currently working on ...
 - 👯 I’m looking to collaborate on ...
 

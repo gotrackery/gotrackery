@@ -35,17 +35,23 @@ Example:
 		if err != nil {
 			return fmt.Errorf("loading config in tcp command: %w", err)
 		}
+
+		err = c.TCPServer.Validate()
+		if err != nil {
+			return fmt.Errorf("validate tcp server config: %w", err)
+		}
+
 		logger = internal.NewLogger(c.Log.ZerologLevel(), c.Log.Console)
 
 		srv, err := server.NewServer(logger, c.TCPServer.Address)
 		if err != nil {
-			return fmt.Errorf("failed to create tcp server: %w", err)
+			return fmt.Errorf("create tcp server: %w", err)
 		}
 
 		srv.SetProtocol(c.TCPServer.GetProtocol())
 		cons, err := c.Consumers.GetConsumers(&logger)
 		if err != nil {
-			return fmt.Errorf("failed to get consumers: %w", err)
+			return fmt.Errorf("get consumers: %w", err)
 		}
 
 		for _, con := range cons {
@@ -53,7 +59,7 @@ Example:
 		}
 		err = srv.ListenAndServe()
 		if err != nil {
-			return fmt.Errorf("failed to start tcp server: %w", err)
+			return fmt.Errorf("start tcp server: %w", err)
 		}
 
 		return nil

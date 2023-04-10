@@ -1,0 +1,20 @@
+services:
+  consul:
+    image: bitnami/consul:latest
+    hostname: localhost
+    ports:
+      - 8500:8500
+    volumes:
+      - ~/.docker-persistence/consul:/bitnami
+  wialonips:
+    image: gotrackery/gotrackery:latest
+    depends_on:
+      - consul
+    restart: on-failure:4
+    hostname: localhost
+    network_mode: host
+    environment:
+      - GOTR_CONSUL=host.docker.internal:8500
+      - GOTR_CONSUL_KEY=gotrackery/wialonips
+    command:
+      - tcp
