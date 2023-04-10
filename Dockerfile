@@ -8,8 +8,8 @@ RUN echo "app name is $APP"
 RUN apk update && apk add git
 
 # Copy the local package files to the container's workspace.
-RUN mkdir -p /opt/src/$APP
-WORKDIR /opt/src/$APP
+RUN mkdir -p /opt/src/gotrackery
+WORKDIR /opt/src/gotrackery
 
 # Some speedup from  https://medium.com/@petomalina/using-go-mod-download-to-speed-up-golang-docker-builds-707591336888
 COPY go.mod .
@@ -17,7 +17,7 @@ COPY go.sum .
 RUN go mod download
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/bin/$APP
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/bin/$APP ./
 
 # Start from scratch.
 FROM bash
