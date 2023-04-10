@@ -21,10 +21,8 @@ var (
 )
 
 var (
-	cfgFile    string
-	consulAddr string
-	consulKey  string
-	logger     zerolog.Logger
+	cfgFile string
+	logger  zerolog.Logger
 )
 
 // rootCmd represents the base command when called without any subcommands.
@@ -67,13 +65,11 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "",
 		fmt.Sprintf("config file (default is $HOME/.%s.yaml)", binary))
-	rootCmd.PersistentFlags().StringVar(&consulAddr, "consul", "",
+	rootCmd.PersistentFlags().String("consul", "",
 		fmt.Sprintf("consul address (can be passed thru env: %s_CONSUL)", binary))
-	rootCmd.PersistentFlags().StringVar(&consulKey, "consul-key", "",
+	rootCmd.PersistentFlags().String("consul-key", "",
 		fmt.Sprintf("consul key (can be passed thru env: %s_CONSUL_KEY)", binary))
 	rootCmd.PersistentFlags().StringP("address", "a", ":5001",
 		"server address with port: :5001")
@@ -84,6 +80,8 @@ func init() {
 
 	_ = viper.BindPFlag("author", rootCmd.PersistentFlags().Lookup("author"))
 	viper.SetDefault("author", "GoTrackery Authors")
+
+	cobra.OnInitialize(initConfig)
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -92,8 +90,11 @@ func initConfig() {
 		With().Caller().Stack().Logger()
 
 	viper.SetEnvPrefix(binary)
-	viper.EnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv() // read in environment variables that match
+
+	consulAddr := viper.GetString("consul")
+	consulKey := viper.GetString("consul-key")
 
 	if consulAddr != "" && consulKey != "" {
 		cfg.InitConsul(consulAddr, consulKey)

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -122,7 +123,12 @@ func (p player) GetSplitFunc() bufio.SplitFunc {
 func (p player) Validate() error {
 	err := pathExists(p.InPath)
 	if err != nil {
-		return fmt.Errorf("Validate InPath: %w", err)
+		return fmt.Errorf("validate InPath: %w", err)
+	}
+
+	_, err = net.ResolveTCPAddr("tcp", p.Address)
+	if err != nil {
+		return fmt.Errorf("validate Address: %w", err)
 	}
 	return nil
 }
@@ -168,6 +174,14 @@ func (s tcpServer) GetOptions() []server.Option {
 	return o
 }
 
+func (s tcpServer) Validate() error {
+	_, err := net.ResolveTCPAddr("tcp", s.Address)
+	if err != nil {
+		return fmt.Errorf("validate Address: %w", err)
+	}
+	return nil
+}
+
 /* consumers methods */
 
 func (c consumers) GetConsumers(l *zerolog.Logger) (lsnr []event.Listener, err error) {
@@ -211,7 +225,6 @@ func (s samplePGDatabase) GetConsumer(l *zerolog.Logger) (lsnr event.Listener, e
 /* utils */
 
 func pathExists(path string) error {
-	fmt.Println("path:", path)
 	_, err := os.Stat(path)
 	if err == nil {
 		return nil

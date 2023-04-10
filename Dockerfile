@@ -16,10 +16,12 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/bin/gotr ./
+RUN mkdir -p /gotrackery/payload
 
 # Start from scratch.
-FROM scratch
+FROM bash
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /go/bin/gotr /gotrackery/gotr
+COPY --from=builder /gotrackery/payload /gotrackery/payload
 
 ENTRYPOINT ["/gotrackery/gotr"]
