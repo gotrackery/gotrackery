@@ -97,14 +97,12 @@ db-drop:
 # Docker commands
 docker:
 	@docker build \
-	--build-arg APP=$(BINARY) \
 	-t $(IMAGENAME) .
-#	--build-arg MAIN_PATH=$(MAIN_PATH) \
 
 stop:
 	@docker stop $(IMAGENAME)
 
-start:docker-build
+start:docker
 	@docker run --rm --name $(IMAGENAME) \
 	-p $(PORT):$(PORT_EXPOSE)/tcp -p $(PORT):$(PORT_EXPOSE)/udp \
 	$(IMAGENAME) tcp -p wialonips -a :$(PORT)
