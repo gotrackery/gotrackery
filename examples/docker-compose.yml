@@ -6,7 +6,7 @@ services:
     volumes:
      - ~/.docker-persistence/consul:/bitnami
   wialonips:
-   image: gotrackery
+   image: gotrackery/gotrackery:latest
    ports:
      - 5001:5001
    depends_on:
