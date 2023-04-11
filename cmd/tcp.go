@@ -43,7 +43,7 @@ Example:
 
 		logger = internal.NewLogger(c.Log.ZerologLevel(), c.Log.Console)
 
-		srv, err := server.NewServer(logger, c.TCPServer.Address)
+		srv, err := server.NewServer(logger, c.TCPServer.Address, c.TCPServer.GetOptions()...)
 		if err != nil {
 			return fmt.Errorf("create tcp server: %w", err)
 		}

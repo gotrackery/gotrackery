@@ -7,12 +7,11 @@ import (
 	"io"
 	"time"
 
+	"github.com/gookit/event"
 	"github.com/gotrackery/gotrackery/internal"
 	ev "github.com/gotrackery/gotrackery/internal/event"
 	gen "github.com/gotrackery/gotrackery/internal/protocol"
 	"github.com/gotrackery/protocol"
-
-	"github.com/gookit/event"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/maurice2k/tcpserver"
 	"github.com/rs/zerolog"

@@ -56,7 +56,7 @@ type consumers struct {
 }
 
 type Config struct {
-	Log       logging
+	Log       logging `mapstructure:"logging" yaml:"logging"`
 	Player    player
 	TCPServer tcpServer `mapstructure:"tcp" yaml:"tcp"`
 	Consumers consumers
@@ -73,6 +73,10 @@ func Load() (*Config, error) {
 /* logging methods */
 
 func (l logging) ZerologLevel() zerolog.Level {
+	if !viper.IsSet("logging.level") {
+		return zerolog.DebugLevel
+	}
+
 	switch l.Level {
 	case "trace":
 		return zerolog.TraceLevel
@@ -197,7 +201,7 @@ func (c consumers) GetConsumers(l *zerolog.Logger) (lsnr []event.Listener, err e
 }
 
 func (s samplePGDatabase) GetConsumer(l *zerolog.Logger) (lsnr event.Listener, err error) {
-	if !viper.IsSet("sample-db.uri") {
+	if !viper.IsSet("consumers.sample-db.uri") {
 		return nil, nil
 	}
 
