@@ -36,7 +36,14 @@ func (s *Server) Option(opts ...Option) {
 	}
 }
 
+// WithTimeout sets the timeout for the server. Default is 10 minutes.
 func WithTimeout(to time.Duration) Option {
+	const defaultTimeout = 10 * time.Minute
+	if to == 0 {
+		return func(s *Server) {
+			s.timeout = defaultTimeout
+		}
+	}
 	return func(s *Server) {
 		s.timeout = to
 	}
