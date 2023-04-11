@@ -5,7 +5,7 @@ MG_INSTALLED := $(shell which mockgen 2> /dev/null)
 
 BINARY=gotr
 PREFIX=$$(echo $(BINARY) | tr 'a-z' 'A-Z')
-POSTGRES="postgres://postgres:postgres@localhost:5432/traccar?sslmode=disable"
+POSTGRES="postgres://postgres:postgres@localhost:5432/example_db?sslmode=disable"
 
 # Docker variables
 IMAGENAME=gotrackery
@@ -71,8 +71,8 @@ cover:
 # Run commands
 run: build
 	@echo Running...
-	@export $(PREFIX)_ADDRESS=:$(PORT)
-	@./$(BINARY) tcp -p egts
+	@#export $(PREFIX)_ADDRESS=:$(PORT)
+	@./$(BINARY) tcp -p egts -a :$(PORT)
 
 # ==============================================================================
 # Database commands
@@ -98,11 +98,12 @@ db-drop:
 docker:
 	@docker build \
 	-t $(IMAGENAME) .
+#	--build-arg MAIN_PATH=$(MAIN_PATH) \
 
 stop:
 	@docker stop $(IMAGENAME)
 
 start:docker
 	@docker run --rm --name $(IMAGENAME) \
-	-p $(PORT):$(PORT_EXPOSE)/tcp -p $(PORT):$(PORT_EXPOSE)/udp \
+	-p $(PORT):$(PORT_EXPOSE)/tcp \
 	$(IMAGENAME) tcp -p wialonips -a :$(PORT)
