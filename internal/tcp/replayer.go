@@ -106,11 +106,6 @@ func (p *Replayer) Play(filename string) error {
 	scanner.Split(splitter.Splitter())
 	for scanner.Scan() {
 		t := time.Now()
-		if errors.Is(splitter.Error(), common.ErrBadData) {
-			log.Error().Err(scanner.Err()).Str("bytes", hex.EncodeToString(splitter.BadData())).Msg("bad data")
-			// ToDo add an option to send any data.
-			return nil
-		}
 		b := scanner.Bytes()
 		log.Debug().Str("payload", hex.EncodeToString(b)).Msg("sending")
 		if err = conn.SetWriteDeadline(time.Now().Add(p.writeTimeout)); err != nil {

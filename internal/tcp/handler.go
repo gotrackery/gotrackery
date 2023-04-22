@@ -88,11 +88,6 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 	splitter := h.proto.NewFrameSplitter()
 	scanner.Split(splitter.Splitter())
 	for scanner.Scan() {
-		if errors.Is(splitter.Error(), common.ErrBadData) {
-			l.Error().Err(scanner.Err()).Str("bytes", hex.EncodeToString(splitter.BadData())).Msg("bad data")
-			return
-		}
-
 		data := scanner.Bytes()
 		if len(data) == 0 {
 			continue
@@ -130,6 +125,12 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 			}
 		}
 	}
+
+	if splitter.Error() != nil && errors.Is(splitter.Error(), common.ErrBadData) {
+		l.Error().Err(splitter.Error()).Str("bytes", hex.EncodeToString(splitter.BadData())).Msg("bad data")
+		return
+	}
+
 	if scanner.Err() != nil && scanner.Err() != io.EOF {
 		l.Error().Err(scanner.Err()).Msg("scanner error")
 		return
