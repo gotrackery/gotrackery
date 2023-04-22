@@ -1,4 +1,4 @@
-package server
+package tcp
 
 import (
 	"bufio"
@@ -11,7 +11,7 @@ import (
 	"github.com/gotrackery/gotrackery/internal"
 	ev "github.com/gotrackery/gotrackery/internal/event"
 	gen "github.com/gotrackery/gotrackery/internal/protocol"
-	"github.com/gotrackery/protocol"
+	"github.com/gotrackery/protocol/common"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/maurice2k/tcpserver"
 	"github.com/rs/zerolog"
@@ -30,16 +30,6 @@ type Result struct {
 	CloseSession   bool
 	Response       []byte
 	GenericAdapter gen.Adapter
-}
-
-// Protocol is the tcp protocol contract.
-type Protocol interface {
-	// GetName returns the name of the protocol.
-	GetName() string
-	// GetSplitFunc returns the split function for the protocol.
-	GetSplitFunc() bufio.SplitFunc
-	// Respond returns the Result as passed was processed.
-	Respond(*internal.Session, []byte) (Result, error)
 }
 
 // Handler is the tcp protocol handler.
@@ -94,12 +84,12 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 
 	var result Result
 	session := internal.NewSession()
-
 	scanner := bufio.NewScanner(conn)
-	scanner.Split(h.proto.GetSplitFunc())
+	splitter := h.proto.NewFrameSplitter()
+	scanner.Split(splitter.Splitter())
 	for scanner.Scan() {
-		if errors.Is(scanner.Err(), protocol.ErrInconsistentData) {
-			l.Error().Err(scanner.Err()).Str("bytes", hex.EncodeToString(scanner.Bytes())).Msg("scan payload")
+		if errors.Is(splitter.Error(), common.ErrBadData) {
+			l.Error().Err(scanner.Err()).Str("bytes", hex.EncodeToString(splitter.BadData())).Msg("bad data")
 			return
 		}
 

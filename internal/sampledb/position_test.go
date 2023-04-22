@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/gotrackery/protocol"
+	"github.com/gotrackery/protocol/common"
 )
 
 func TestAttributes(t *testing.T) {
 	type args struct {
-		a protocol.Attributes
+		a common.Attributes
 	}
 	tests := []struct {
 		name string
@@ -18,7 +18,7 @@ func TestAttributes(t *testing.T) {
 	}{
 		{
 			name: "basic test",
-			args: args{a: protocol.Attributes{"i": 1, "f": 2.1, "s": "3"}},
+			args: args{a: common.Attributes{"i": 1, "f": 2.1, "s": "3"}},
 			want: `{"f":2.1,"i":1,"s":"3"}`,
 		},
 	}

@@ -6,14 +6,26 @@ services:
     volumes:
      - ~/.docker-persistence/consul:/bitnami
   wialonips:
-   image: gotrackery
-   ports:
-     - 5001:5001
-   depends_on:
-     - consul
-   restart: on-failure:4
-   environment:
-     - GOTR_CONSUL=host.docker.internal:8500
-     - GOTR_CONSUL_KEY=gotrackery/wialonips
-   command:
-     - tcp
+    image: gotrackery/gotrackery:latest
+    ports:
+      - 5001:5001
+    depends_on:
+      - consul
+    restart: on-failure:4
+    environment:
+      - GOTR_CONSUL=host.docker.internal:8500
+      - GOTR_CONSUL_KEY=gotrackery/wialonips
+    command:
+      - tcp
+  egts:
+    image: gotrackery/gotrackery:latest
+    ports:
+      - 5002:5002
+    depends_on:
+      - consul
+    restart: on-failure:4
+    environment:
+      - GOTR_CONSUL=host.docker.internal:8500
+      - GOTR_CONSUL_KEY=gotrackery/egts
+    command:
+      - tcp

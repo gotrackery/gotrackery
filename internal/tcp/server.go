@@ -1,4 +1,4 @@
-package server
+package tcp
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type Option func(*Server)
+type ServerOption func(*Server)
 
 // Server is a TCP server for handling incoming device or retranslator connections.
 type Server struct {
@@ -19,7 +19,7 @@ type Server struct {
 }
 
 // NewServer creates a new TCP server.
-func NewServer(l zerolog.Logger, address string, opts ...Option) (server *Server, err error) {
+func NewServer(l zerolog.Logger, address string, opts ...ServerOption) (server *Server, err error) {
 	server = &Server{logger: l}
 	server.srv, err = tcpserver.NewServer(address)
 	server.srv.SetListenConfig(&tcpserver.ListenConfig{
@@ -30,14 +30,14 @@ func NewServer(l zerolog.Logger, address string, opts ...Option) (server *Server
 }
 
 // Option sets the options specified.
-func (s *Server) Option(opts ...Option) {
+func (s *Server) Option(opts ...ServerOption) {
 	for _, opt := range opts {
 		opt(s)
 	}
 }
 
 // WithTimeout sets the timeout for the server. Default is 10 minutes.
-func WithTimeout(to time.Duration) Option {
+func WithTimeout(to time.Duration) ServerOption {
 	const defaultTimeout = 10 * time.Minute
 	if to == 0 {
 		return func(s *Server) {
@@ -49,7 +49,7 @@ func WithTimeout(to time.Duration) Option {
 	}
 }
 
-func WithSocketReusePort(reuse bool) Option {
+func WithSocketReusePort(reuse bool) ServerOption {
 	return func(s *Server) {
 		c := s.srv.GetListenConfig()
 		c.SocketReusePort = reuse
@@ -57,7 +57,7 @@ func WithSocketReusePort(reuse bool) Option {
 	}
 }
 
-func WithSocketFastOpen(fopen bool) Option {
+func WithSocketFastOpen(fopen bool) ServerOption {
 	return func(s *Server) {
 		c := s.srv.GetListenConfig()
 		c.SocketFastOpen = fopen
@@ -65,7 +65,7 @@ func WithSocketFastOpen(fopen bool) Option {
 	}
 }
 
-func WithSocketDeferAccept(daccept bool) Option {
+func WithSocketDeferAccept(daccept bool) ServerOption {
 	return func(s *Server) {
 		c := s.srv.GetListenConfig()
 		c.SocketDeferAccept = daccept
@@ -73,19 +73,19 @@ func WithSocketDeferAccept(daccept bool) Option {
 	}
 }
 
-func WithLoops(loops int) Option {
+func WithLoops(loops int) ServerOption {
 	return func(s *Server) {
 		s.srv.SetLoops(loops)
 	}
 }
 
-func WithWorkerpoolShards(shards int) Option {
+func WithWorkerpoolShards(shards int) ServerOption {
 	return func(s *Server) {
 		s.srv.SetWorkerpoolShards(shards)
 	}
 }
 
-func WithAllowThreadLocking(locking bool) Option {
+func WithAllowThreadLocking(locking bool) ServerOption {
 	return func(s *Server) {
 		s.srv.SetAllowThreadLocking(locking)
 	}
@@ -98,7 +98,7 @@ func (s *Server) RegisterHandler(f tcpserver.RequestHandlerFunc) {
 
 // SetProtocol sets the protocol for incoming device or retranslator connections.
 func (s *Server) SetProtocol(p Protocol) {
-	s.logger = s.logger.With().Str("proto", p.GetName()).Logger()
+	s.logger = s.logger.With().Str("proto", p.Name()).Logger()
 	s.Handler = NewHandler(s.logger, p, s.timeout)
 	s.RegisterHandler(s.Handler.Handle)
 }

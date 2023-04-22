@@ -32,7 +32,7 @@ func NewDB(l *zerolog.Logger, db *pgxpool.Pool) (*DB, error) {
 
 func (d *DB) Handle(e event.Event) (err error) {
 	pos := e.(*ev.GenericEvent).GetPosition()
-	tr, err := CreateFromGeneric(pos)
+	tr, err := CreateFromCommon(pos)
 	if err != nil {
 		return err
 	}

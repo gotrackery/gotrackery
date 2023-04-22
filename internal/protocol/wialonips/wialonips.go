@@ -1,11 +1,9 @@
 package wialonips
 
 import (
-	"bufio"
-
 	"github.com/gotrackery/gotrackery/internal"
-	"github.com/gotrackery/gotrackery/internal/tcp/server"
-	"github.com/gotrackery/protocol"
+	"github.com/gotrackery/gotrackery/internal/tcp"
+	"github.com/gotrackery/protocol/common"
 	"github.com/gotrackery/protocol/wialonips"
 )
 
@@ -14,12 +12,7 @@ const (
 	ctxVersion = "version"
 )
 
-var _ server.Protocol = (*WialonIPS)(nil)
-
-// GetSplitFunc returns the split function for the WialonIPS protocol.
-func GetSplitFunc() bufio.SplitFunc {
-	return wialonips.ScanPackage
-}
+var _ tcp.Protocol = (*WialonIPS)(nil)
 
 // WialonIPS is a WialonIPS protocol struct.
 type WialonIPS struct {
@@ -30,26 +23,26 @@ func NewWialonIPS() *WialonIPS {
 	return &WialonIPS{}
 }
 
-// GetName returns the name of the WialonIPS protocol.
-func (w *WialonIPS) GetName() string {
+// Name returns the name of the WialonIPS protocol.
+func (w *WialonIPS) Name() string {
 	return Proto
 }
 
-// GetSplitFunc returns a split function for the WialonIPS protocol.
-func (w *WialonIPS) GetSplitFunc() bufio.SplitFunc {
-	return GetSplitFunc()
+// NewFrameSplitter returns a new instance of the split function for the WialonIPS protocol.
+func (w *WialonIPS) NewFrameSplitter() common.FrameSplitter {
+	return wialonips.NewSplitter()
 }
 
 // Respond returns the result of parsing the WialonIPS data.
-func (w *WialonIPS) Respond(s *internal.Session, bytes []byte) (res server.Result, err error) {
-	pkg := wialonips.NewPackage(w.getVersion(s), s.GetDevice())
+func (w *WialonIPS) Respond(s *internal.Session, bytes []byte) (res tcp.Result, err error) {
+	pkg := wialonips.NewPacket(w.getVersion(s), s.GetDevice())
 	err = pkg.Decode(bytes)
 	if pkg.Type == wialonips.LoginPacket {
 		s.SetDevice(pkg.IMEI)
 		s.Set(ctxVersion, pkg.Version)
 	}
 	if pkg.Type == wialonips.UnknownPacket {
-		return res, protocol.ErrInconsistentData
+		return res, common.ErrBadData
 	}
 	res.Response = pkg.Message.Response()
 	if err != nil && (pkg.Type == wialonips.LoginPacket || pkg.Type == wialonips.UnknownPacket) {
@@ -57,7 +50,7 @@ func (w *WialonIPS) Respond(s *internal.Session, bytes []byte) (res server.Resul
 		return
 	}
 
-	res.GenericAdapter = Adapter{Package: &pkg}
+	res.GenericAdapter = Adapter{Packet: &pkg}
 	return
 }
 

@@ -1,10 +1,10 @@
 package protocol
 
 import (
-	"github.com/gotrackery/protocol/generic"
+	"github.com/gotrackery/protocol/common"
 )
 
 // Adapter is a generic adapter for the Position struct.
 type Adapter interface {
-	GenericPositions() []generic.Position
+	GenericPositions() []common.Position
 }

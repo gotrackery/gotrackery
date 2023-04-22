@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/gotrackery/protocol/generic"
+	"github.com/gotrackery/protocol/common"
 
 	"gopkg.in/guregu/null.v4"
 )
@@ -27,7 +27,7 @@ type Position struct {
 	Network    null.String
 }
 
-func CreateFromGeneric(p generic.Position) (*Position, error) {
+func CreateFromCommon(p common.Position) (*Position, error) {
 	attr, err := json.Marshal(p.Attributes)
 	if err != nil {
 		return nil, err

@@ -1,7 +1,7 @@
 package event
 
 import (
-	"github.com/gotrackery/protocol/generic"
+	"github.com/gotrackery/protocol/common"
 
 	"github.com/gookit/event"
 )
@@ -11,10 +11,10 @@ var _ event.Event = (*GenericEvent)(nil)
 // GenericEvent describes generic and unified events extracted from received data.
 type GenericEvent struct {
 	event.BasicEvent
-	generic.Position
+	common.Position
 }
 
 // GetPosition returns generic and unified position data.
-func (e GenericEvent) GetPosition() generic.Position {
+func (e GenericEvent) GetPosition() common.Position {
 	return e.Position
 }

@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	gen "github.com/gotrackery/gotrackery/internal/protocol"
+	"github.com/gotrackery/protocol/common"
 	"github.com/gotrackery/protocol/egts"
-	"github.com/gotrackery/protocol/generic"
 	"github.com/peterstace/simplefeatures/geom"
 	"gopkg.in/guregu/null.v4"
 )
@@ -15,13 +15,13 @@ import (
 var _ gen.Adapter = (*Adapter)(nil)
 
 type Adapter struct {
-	Package *egts.Package
+	Package *egts.Packet
 }
 
-func (a Adapter) GenericPositions() []generic.Position {
-	var p generic.Position
+func (a Adapter) GenericPositions() []common.Position {
+	var p common.Position
 	valid := a.Package.ErrorCode == egts.EgtsPcOk
-	ps := make([]generic.Position, 0, 1)
+	ps := make([]common.Position, 0, 1)
 	if a.Package.PacketType != egts.PtAppdataPacket ||
 		a.Package.ServicesFrameData == nil {
 		return nil
@@ -42,8 +42,8 @@ func (a Adapter) GenericPositions() []generic.Position {
 	return nil
 }
 
-func (a Adapter) convertRecordToGeneric(r egts.ServiceDataRecord, valid bool) generic.Position {
-	p := generic.Position{
+func (a Adapter) convertRecordToGeneric(r egts.ServiceDataRecord, valid bool) common.Position {
+	p := common.Position{
 		Protocol: Proto,
 	}
 
@@ -75,7 +75,7 @@ func (a Adapter) convertRecordToGeneric(r egts.ServiceDataRecord, valid bool) ge
 	return p
 }
 
-func (a Adapter) copyPosData(p *generic.Position, posData *egts.SrPosData, valid bool) {
+func (a Adapter) copyPosData(p *common.Position, posData *egts.SrPosData, valid bool) {
 	p.DeviceTime = posData.NavigationTime
 	p.Location.X = math.Copysign(posData.Longitude, a.getHSSign(posData.LOHS))
 	p.Location.Y = math.Copysign(posData.Latitude, a.getHSSign(posData.LAHS))
@@ -88,150 +88,150 @@ func (a Adapter) copyPosData(p *generic.Position, posData *egts.SrPosData, valid
 	p.Speed = null.NewFloat(float64(posData.Speed), true)
 	p.Course = null.NewFloat(float64(posData.Direction), true)
 	p.Attributes = p.Attributes.AppendNullInt(
-		generic.Odometer,
+		common.Odometer,
 		null.NewInt(int64(posData.Odometer), true),
 	)
 	p.Attributes = p.Attributes.AppendNullString(
-		generic.Move,
+		common.Move,
 		null.NewString(posData.MV, true),
 	)
 	// ToDo add source data ???
 }
 
-func (a Adapter) copyExtPosData(p *generic.Position, extPosData *egts.SrExtPosData) {
+func (a Adapter) copyExtPosData(p *common.Position, extPosData *egts.SrExtPosData) {
 	if extPosData.SatellitesFieldExists == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			generic.Satellites,
+			common.Satellites,
 			null.NewInt(int64(extPosData.Satellites), true),
 		)
 	}
 	if extPosData.PdopFieldExists == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			generic.PDOP,
+			common.PDOP,
 			null.NewInt(int64(extPosData.PositionDilutionOfPrecision), true),
 		)
 	}
 	if extPosData.HdopFieldExists == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			generic.HDOP,
+			common.HDOP,
 			null.NewInt(int64(extPosData.HorizontalDilutionOfPrecision), true),
 		)
 	}
 	if extPosData.VdopFieldExists == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			generic.VDOP,
+			common.VDOP,
 			null.NewInt(int64(extPosData.VerticalDilutionOfPrecision), true),
 		)
 	}
 	if extPosData.NavigationSystemFieldExists == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			generic.NavSystem,
+			common.NavSystem,
 			null.NewInt(int64(extPosData.NavigationSystem), true),
 		)
 	}
 }
 
-func (a Adapter) copyAdSensorsData(p *generic.Position, adSensorsData *egts.SrAdSensorsData) {
+func (a Adapter) copyAdSensorsData(p *common.Position, adSensorsData *egts.SrAdSensorsData) {
 	/* ADIO - DigitalInputs */
 	if adSensorsData.DigitalInputsOctetExists1 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_1", generic.DigInput),
+			fmt.Sprintf("%s_1", common.DigInput),
 			null.NewInt(int64(adSensorsData.AdditionalDigitalInputsOctet1), true),
 		)
 	}
 	if adSensorsData.DigitalInputsOctetExists2 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_2", generic.DigInput),
+			fmt.Sprintf("%s_2", common.DigInput),
 			null.NewInt(int64(adSensorsData.AdditionalDigitalInputsOctet2), true),
 		)
 	}
 	if adSensorsData.DigitalInputsOctetExists3 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_3", generic.DigInput),
+			fmt.Sprintf("%s_3", common.DigInput),
 			null.NewInt(int64(adSensorsData.AdditionalDigitalInputsOctet3), true),
 		)
 	}
 	if adSensorsData.DigitalInputsOctetExists4 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_4", generic.DigInput),
+			fmt.Sprintf("%s_4", common.DigInput),
 			null.NewInt(int64(adSensorsData.AdditionalDigitalInputsOctet4), true),
 		)
 	}
 	if adSensorsData.DigitalInputsOctetExists5 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_5", generic.DigInput),
+			fmt.Sprintf("%s_5", common.DigInput),
 			null.NewInt(int64(adSensorsData.AdditionalDigitalInputsOctet5), true),
 		)
 	}
 	if adSensorsData.DigitalInputsOctetExists6 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_6", generic.DigInput),
+			fmt.Sprintf("%s_6", common.DigInput),
 			null.NewInt(int64(adSensorsData.AdditionalDigitalInputsOctet6), true),
 		)
 	}
 	if adSensorsData.DigitalInputsOctetExists7 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_7", generic.DigInput),
+			fmt.Sprintf("%s_7", common.DigInput),
 			null.NewInt(int64(adSensorsData.AdditionalDigitalInputsOctet7), true),
 		)
 	}
 	if adSensorsData.DigitalInputsOctetExists8 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_8", generic.DigInput),
+			fmt.Sprintf("%s_8", common.DigInput),
 			null.NewInt(int64(adSensorsData.AdditionalDigitalInputsOctet8), true),
 		)
 	}
 	/* DOUT - DigitalOutputs */
 	p.Attributes = p.Attributes.AppendNullInt(
-		generic.DigOutput,
+		common.DigOutput,
 		null.NewInt(int64(adSensorsData.DigitalOutputs), true),
 	)
 	/* ANS - Analog sensors */
 	if adSensorsData.AnalogSensorFieldExists1 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_1", generic.AnInput),
+			fmt.Sprintf("%s_1", common.AnInput),
 			null.NewInt(int64(adSensorsData.AnalogSensor1), true),
 		)
 	}
 	if adSensorsData.AnalogSensorFieldExists2 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_2", generic.AnInput),
+			fmt.Sprintf("%s_2", common.AnInput),
 			null.NewInt(int64(adSensorsData.AnalogSensor2), true),
 		)
 	}
 	if adSensorsData.AnalogSensorFieldExists3 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_3", generic.AnInput),
+			fmt.Sprintf("%s_3", common.AnInput),
 			null.NewInt(int64(adSensorsData.AnalogSensor3), true),
 		)
 	}
 	if adSensorsData.AnalogSensorFieldExists4 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_4", generic.AnInput),
+			fmt.Sprintf("%s_4", common.AnInput),
 			null.NewInt(int64(adSensorsData.AnalogSensor4), true),
 		)
 	}
 	if adSensorsData.AnalogSensorFieldExists5 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_5", generic.AnInput),
+			fmt.Sprintf("%s_5", common.AnInput),
 			null.NewInt(int64(adSensorsData.AnalogSensor5), true),
 		)
 	}
 	if adSensorsData.AnalogSensorFieldExists6 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_6", generic.AnInput),
+			fmt.Sprintf("%s_6", common.AnInput),
 			null.NewInt(int64(adSensorsData.AnalogSensor6), true),
 		)
 	}
 	if adSensorsData.AnalogSensorFieldExists7 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_7", generic.AnInput),
+			fmt.Sprintf("%s_7", common.AnInput),
 			null.NewInt(int64(adSensorsData.AnalogSensor7), true),
 		)
 	}
 	if adSensorsData.AnalogSensorFieldExists8 == "1" {
 		p.Attributes = p.Attributes.AppendNullInt(
-			fmt.Sprintf("%s_8", generic.AnInput),
+			fmt.Sprintf("%s_8", common.AnInput),
 			null.NewInt(int64(adSensorsData.AnalogSensor8), true),
 		)
 	}

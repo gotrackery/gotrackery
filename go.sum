@@ -208,8 +208,8 @@ github.com/googleapis/gax-go/v2 v2.7.0/go.mod h1:TEop28CZZQ2y+c0VxMUmu1lV+fQx57Q
 github.com/googleapis/google-cloud-go-testing v0.0.0-20200911160855-bcd43fbb19e8/go.mod h1:dvDLG8qkwmyD9a/MJJN3XJcT3xFxOKAvTZGvuZmac9g=
 github.com/gookit/event v1.0.6 h1:/U95T1tBzt9RSSi23pg4VR3B9VWkyM4xv8TXAGi60IQ=
 github.com/gookit/event v1.0.6/go.mod h1:7Udf/q/HQcrK9XE4JZUvbqi46rI1V8r/Pvao2NbPajA=
-github.com/gotrackery/protocol v0.0.1 h1:hZZ9P0318/Iniz7AoKCdvgKtD/zEEEbo3tR9lYY4tMc=
-github.com/gotrackery/protocol v0.0.1/go.mod h1:FMaYgD3u//zf3HiwDl9w1P1GsITMO4uFgylT9Z7FLEc=
+github.com/gotrackery/protocol v0.0.3 h1:btu9rdk76scNoljNz3HvNrCBj1VfcsiImph+r0c9lKo=
+github.com/gotrackery/protocol v0.0.3/go.mod h1:FMaYgD3u//zf3HiwDl9w1P1GsITMO4uFgylT9Z7FLEc=
 github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0/go.mod h1:8NvIoxWQoOIhqOTXgfV/d3M/q6VIi02HzZEHgUlZvzk=
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/hashicorp/consul/api v1.18.0 h1:R7PPNzTCeN6VuQNDwwhZWJvzCtGSrNpJqfb22h3yH9g=

@@ -1,24 +1,20 @@
 package egts
 
 import (
-	"bufio"
 	"fmt"
 	"strconv"
 
 	"github.com/gotrackery/gotrackery/internal"
-	"github.com/gotrackery/gotrackery/internal/tcp/server"
+	"github.com/gotrackery/gotrackery/internal/tcp"
+	"github.com/gotrackery/protocol/common"
 	"github.com/gotrackery/protocol/egts"
 )
 
-var _ server.Protocol = (*EGTS)(nil)
+var _ tcp.Protocol = (*EGTS)(nil)
 
 const (
 	Proto = "egts"
 )
-
-func GetSplitFunc() bufio.SplitFunc {
-	return egts.ScanPackage
-}
 
 type EGTS struct {
 }
@@ -27,16 +23,16 @@ func NewEGTS() *EGTS {
 	return &EGTS{}
 }
 
-func (e *EGTS) GetName() string {
+func (e *EGTS) Name() string {
 	return Proto
 }
 
-func (e *EGTS) GetSplitFunc() bufio.SplitFunc {
-	return GetSplitFunc()
+func (e *EGTS) NewFrameSplitter() common.FrameSplitter {
+	return egts.NewSplitter()
 }
 
-func (e *EGTS) Respond(s *internal.Session, bytes []byte) (res server.Result, err error) {
-	pkg := egts.Package{}
+func (e *EGTS) Respond(s *internal.Session, bytes []byte) (res tcp.Result, err error) {
+	pkg := egts.Packet{}
 	_ = pkg.Decode(bytes)
 
 	device := e.getDevice(&pkg)
@@ -46,13 +42,13 @@ func (e *EGTS) Respond(s *internal.Session, bytes []byte) (res server.Result, er
 
 	res.Response, err = pkg.Response()
 	if err != nil {
-		return server.Result{CloseSession: true}, fmt.Errorf("got error on response: %s", err)
+		return tcp.Result{CloseSession: true}, fmt.Errorf("got error on response: %s", err)
 	}
 	res.GenericAdapter = Adapter{Package: &pkg}
 	return
 }
 
-func (e *EGTS) getDevice(pkg *egts.Package) string {
+func (e *EGTS) getDevice(pkg *egts.Packet) string {
 	if pkg.ServicesFrameData == nil {
 		return ""
 	}

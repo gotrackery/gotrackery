@@ -1,7 +1,6 @@
 package cfg
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"net"
@@ -9,20 +8,30 @@ import (
 	"time"
 
 	"github.com/gookit/event"
-	"github.com/gotrackery/gotrackery/internal/protocol/detector"
 	"github.com/gotrackery/gotrackery/internal/protocol/egts"
 	"github.com/gotrackery/gotrackery/internal/protocol/wialonips"
 	"github.com/gotrackery/gotrackery/internal/sampledb"
-	"github.com/gotrackery/gotrackery/internal/tcp/replayer"
-	"github.com/gotrackery/gotrackery/internal/tcp/server"
+	"github.com/gotrackery/gotrackery/internal/tcp"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
+var (
+	_ zerolog.LogObjectMarshaler = (*logging)(nil)
+	_ zerolog.LogObjectMarshaler = (*player)(nil)
+	_ zerolog.LogObjectMarshaler = (*tcpServer)(nil)
+	_ zerolog.LogObjectMarshaler = (*consumers)(nil)
+)
+
 type logging struct {
 	Level   string
 	Console bool
+	NoBlock bool `mapstructure:"no-block" yaml:"no-block"`
+}
+
+func (l logging) MarshalZerologObject(e *zerolog.Event) {
+	e.Dict("logging", e.Str("level", l.Level))
 }
 
 type player struct {
@@ -33,6 +42,16 @@ type player struct {
 	Workers  int    `mapstructure:"nums" yaml:"nums"`
 	Delay    int
 	Timeouts int
+}
+
+func (p player) MarshalZerologObject(e *zerolog.Event) {
+	e.Str("address", p.Address)
+	e.Str("proto", p.Proto)
+	e.Str("in-path", p.InPath)
+	e.Str("file-mask", p.FileMask)
+	e.Int("workers", p.Workers)
+	e.Int("timeouts", p.Timeouts)
+	e.Int("delay", p.Delay)
 }
 
 type tcpServer struct {
@@ -47,12 +66,28 @@ type tcpServer struct {
 	AllowThreadLocking bool `mapstructure:"allow-thread-locking" yaml:"allow-thread-locking"`
 }
 
+func (s tcpServer) MarshalZerologObject(e *zerolog.Event) {
+	e.Str("address", s.Address)
+	e.Str("proto", s.Proto)
+	e.Int("timeouts", s.Timeouts)
+	e.Bool("socket-reuse-port", s.SocketReusePort)
+	e.Bool("socket-fast-open", s.SocketFastOpen)
+	e.Bool("socket-defer-accept", s.SocketDeferAccept)
+	e.Int("loops", s.Loops)
+	e.Int("workerpool-shards", s.WorkerpoolShards)
+	e.Bool("allow-thread-locking", s.AllowThreadLocking)
+}
+
 type samplePGDatabase struct {
 	URI string
 }
 
 type consumers struct {
 	SamplePG samplePGDatabase `mapstructure:"sample-db" yaml:"sample-db"`
+}
+
+func (c consumers) MarshalZerologObject(e *zerolog.Event) {
+	e.Str("sample-db", c.SamplePG.URI)
 }
 
 type Config struct {
@@ -95,33 +130,31 @@ func (l logging) ZerologLevel() zerolog.Level {
 
 /* player methods */
 
-func (p player) GetOptions() []replayer.Option {
-	o := make([]replayer.Option, 0, 2)
+func (p player) GetOptions() []tcp.ReplayerOption {
+	o := make([]tcp.ReplayerOption, 0, 2)
 	if viper.IsSet("player.delay") {
-		o = append(o, replayer.WithDelay(p.Delay))
+		o = append(o, tcp.WithDelay(p.Delay))
 	}
 	if viper.IsSet("player.timeouts") {
-		o = append(o, replayer.WithTimeouts(time.Duration(p.Timeouts)*time.Second))
+		o = append(o, tcp.WithTimeouts(time.Duration(p.Timeouts)*time.Second))
 	}
 	return o
 }
 
-// GetSplitFunc returns bufio.SplitFunc for bufio.Scanner.
+// GetProtocol returns tcp.Protocol for bufio.Scanner.
 // If protocol is not defined it will return bufio.ScanLines.
-func (p player) GetSplitFunc() bufio.SplitFunc {
-	var splitFuncs = map[string]bufio.SplitFunc{
-		wialonips.Proto: wialonips.GetSplitFunc(),
-		egts.Proto:      egts.GetSplitFunc(),
-	}
-
-	if p.Proto == detector.Proto {
-		return detector.NewProtocolScanner().ScanProtocol
+func (p player) GetProtocol() tcp.Protocol {
+	var splitFuncs = map[string]tcp.Protocol{
+		wialonips.Proto: wialonips.NewWialonIPS(),
+		egts.Proto:      egts.NewEGTS(),
 	}
 
 	if splitFunc, ok := splitFuncs[p.Proto]; ok {
 		return splitFunc
 	}
-	return bufio.ScanLines
+
+	// ToDo return wialon retranslator here as default.
+	return nil
 }
 
 func (p player) Validate() error {
@@ -140,10 +173,8 @@ func (p player) Validate() error {
 /* tcp server methods */
 
 // GetProtocol returns protocol handler according Proto property.
-func (s tcpServer) GetProtocol() server.Protocol {
+func (s tcpServer) GetProtocol() tcp.Protocol {
 	switch s.Proto {
-	case detector.Proto:
-		return detector.NewDetector([]byte{})
 	case egts.Proto:
 		return egts.NewEGTS()
 	case wialonips.Proto:
@@ -152,28 +183,28 @@ func (s tcpServer) GetProtocol() server.Protocol {
 	return egts.NewEGTS()
 }
 
-func (s tcpServer) GetOptions() []server.Option {
-	o := make([]server.Option, 0, 2)
+func (s tcpServer) GetOptions() []tcp.ServerOption {
+	o := make([]tcp.ServerOption, 0, 2)
 	if viper.IsSet("tcp.timeouts") {
-		o = append(o, server.WithTimeout(time.Duration(s.Timeouts)*time.Second))
+		o = append(o, tcp.WithTimeout(time.Duration(s.Timeouts)*time.Second))
 	}
 	if viper.IsSet("tcp.socket-reuse-port") {
-		o = append(o, server.WithSocketReusePort(s.SocketReusePort))
+		o = append(o, tcp.WithSocketReusePort(s.SocketReusePort))
 	}
 	if viper.IsSet("tcp.socket-fast-open") {
-		o = append(o, server.WithSocketFastOpen(s.SocketFastOpen))
+		o = append(o, tcp.WithSocketFastOpen(s.SocketFastOpen))
 	}
 	if viper.IsSet("tcp.socket-defer-accept") {
-		o = append(o, server.WithSocketDeferAccept(s.SocketDeferAccept))
+		o = append(o, tcp.WithSocketDeferAccept(s.SocketDeferAccept))
 	}
 	if viper.IsSet("tcp.loops") {
-		o = append(o, server.WithLoops(s.Loops))
+		o = append(o, tcp.WithLoops(s.Loops))
 	}
 	if viper.IsSet("tcp.workerpool-shards") {
-		o = append(o, server.WithWorkerpoolShards(s.WorkerpoolShards))
+		o = append(o, tcp.WithWorkerpoolShards(s.WorkerpoolShards))
 	}
 	if viper.IsSet("tcp.allow-thread-locking") {
-		o = append(o, server.WithAllowThreadLocking(s.AllowThreadLocking))
+		o = append(o, tcp.WithAllowThreadLocking(s.AllowThreadLocking))
 	}
 	return o
 }
