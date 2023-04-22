@@ -6,7 +6,7 @@ import (
 	"github.com/gotrackery/gotrackery/cfg"
 	"github.com/gotrackery/gotrackery/internal"
 	"github.com/gotrackery/gotrackery/internal/protocol/egts"
-	"github.com/gotrackery/gotrackery/internal/tcp/server"
+	"github.com/gotrackery/gotrackery/internal/tcp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -41,9 +41,11 @@ Example:
 			return fmt.Errorf("validate tcp server config: %w", err)
 		}
 
-		logger = internal.NewLogger(c.Log.ZerologLevel(), c.Log.Console)
+		logger = internal.NewLogger(c.Log.ZerologLevel(), c.Log.Console, c.Log.NoBlock)
+		logger.Info().Object("tcp-server", c.TCPServer).Msg("server config")
+		logger.Info().Object("consumers", c.Consumers).Msg("consumers config")
 
-		srv, err := server.NewServer(logger, c.TCPServer.Address, c.TCPServer.GetOptions()...)
+		srv, err := tcp.NewServer(logger, c.TCPServer.Address, c.TCPServer.GetOptions()...)
 		if err != nil {
 			return fmt.Errorf("create tcp server: %w", err)
 		}

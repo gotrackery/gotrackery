@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/gookit/event v1.0.6
-	github.com/gotrackery/protocol v0.0.1
+	github.com/gotrackery/protocol v0.0.3
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/magiconair/properties v1.8.7
 	github.com/matoous/go-nanoid/v2 v2.0.0

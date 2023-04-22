@@ -6,7 +6,7 @@ import (
 	"github.com/gotrackery/gotrackery/cfg"
 	"github.com/gotrackery/gotrackery/internal/player"
 	"github.com/gotrackery/gotrackery/internal/protocol/egts"
-	"github.com/gotrackery/gotrackery/internal/tcp/replayer"
+	"github.com/gotrackery/gotrackery/internal/tcp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -50,11 +50,11 @@ var replayCmd = &cobra.Command{
 			return fmt.Errorf("validate player config: %w", err)
 		}
 
-		fmt.Println("Config:\n", c)
+		logger.Info().Object("player", c.Player).Msg("player config")
 
-		replayer := replayer.NewReplayer(
+		replayer := tcp.NewReplayer(
 			c.Player.Address,
-			c.Player.GetSplitFunc(),
+			c.Player.GetProtocol(),
 			c.Player.GetOptions()...,
 		)
 		player.Run(c.Player.InPath, c.Player.FileMask, replayer, c.Player.Workers)

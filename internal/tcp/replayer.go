@@ -1,8 +1,9 @@
-package replayer
+package tcp
 
 import (
 	"bufio"
 	"encoding/hex"
+	"errors"
 	"io"
 	"math/rand"
 	"net"
@@ -10,16 +11,19 @@ import (
 	"time"
 
 	"github.com/gotrackery/gotrackery/internal/player"
+	"github.com/gotrackery/protocol/common"
 	"github.com/rs/zerolog/log"
 )
 
+const defaultAddr = ":5000"
+
 var _ player.Player = (*Replayer)(nil)
 
-type Option func(*Replayer)
+type ReplayerOption func(*Replayer)
 
 // Replayer is replayer previously recorded data of TCP protocols.
 type Replayer struct {
-	splitter     bufio.SplitFunc
+	proto        Protocol
 	addr         string
 	dialTimeout  time.Duration
 	readTimeout  time.Duration
@@ -28,12 +32,15 @@ type Replayer struct {
 }
 
 // NewReplayer creates new instance of Replayer.
-// Provide server address to where data will be sent and splitter to send package by package with delay between.
-// It is possible but not recommended to use splitter by EOF to send whole file as one package.
-func NewReplayer(address string, splitter bufio.SplitFunc, opts ...Option) *Replayer {
+// Provide server address to where data will be sent and proto to send package by package with delay between.
+// It is possible but not recommended to use proto by EOF to send whole file as one package.
+func NewReplayer(address string, proto Protocol, opts ...ReplayerOption) *Replayer {
+	if address == "" {
+		address = defaultAddr
+	}
 	r := &Replayer{
 		addr:         address,
-		splitter:     splitter,
+		proto:        proto,
 		dialTimeout:  10 * time.Second,
 		readTimeout:  10 * time.Second,
 		writeTimeout: 10 * time.Second,
@@ -44,13 +51,13 @@ func NewReplayer(address string, splitter bufio.SplitFunc, opts ...Option) *Repl
 }
 
 // Option sets the options specified.
-func (p *Replayer) Option(opts ...Option) {
+func (p *Replayer) Option(opts ...ReplayerOption) {
 	for _, opt := range opts {
 		opt(p)
 	}
 }
 
-func WithTimeouts(to time.Duration) Option {
+func WithTimeouts(to time.Duration) ReplayerOption {
 	return func(r *Replayer) {
 		r.dialTimeout = to
 		r.readTimeout = to
@@ -58,7 +65,7 @@ func WithTimeouts(to time.Duration) Option {
 	}
 }
 
-func WithDelay(milsecs int) Option {
+func WithDelay(milsecs int) ReplayerOption {
 	return func(r *Replayer) {
 		r.packetDelay = milsecs
 	}
@@ -95,9 +102,15 @@ func (p *Replayer) Play(filename string) error {
 	log.Info().Str("filename", filename).Msg("replaying")
 
 	scanner := bufio.NewScanner(file)
-	scanner.Split(p.splitter)
+	splitter := p.proto.NewFrameSplitter()
+	scanner.Split(splitter.Splitter())
 	for scanner.Scan() {
 		t := time.Now()
+		if errors.Is(splitter.Error(), common.ErrBadData) {
+			log.Error().Err(scanner.Err()).Str("bytes", hex.EncodeToString(splitter.BadData())).Msg("bad data")
+			// ToDo add an option to send any data.
+			return nil
+		}
 		b := scanner.Bytes()
 		log.Debug().Str("payload", hex.EncodeToString(b)).Msg("sending")
 		if err = conn.SetWriteDeadline(time.Now().Add(p.writeTimeout)); err != nil {
@@ -130,8 +143,13 @@ func (p *Replayer) Play(filename string) error {
 func (p *Replayer) readResponse(r io.Reader) ([]byte, error) {
 	var resp []byte
 	scanner := bufio.NewScanner(r)
-	scanner.Split(p.splitter)
+	splitter := p.proto.NewFrameSplitter()
+	scanner.Split(splitter.Splitter())
 	for scanner.Scan() {
+		if errors.Is(splitter.Error(), common.ErrBadData) {
+			return splitter.BadData(), nil
+		}
+
 		resp = scanner.Bytes()
 		if len(resp) == 0 {
 			continue
