@@ -136,7 +136,7 @@ func (l logging) ZerologLevel() zerolog.Level {
 
 /* player methods */
 
-func (p player) GetOptions() []tcp.ReplayerOption {
+func (p player) Options() []tcp.ReplayerOption {
 	o := make([]tcp.ReplayerOption, 0, 2)
 	if viper.IsSet("player.delay") {
 		o = append(o, tcp.WithDelay(p.Delay))
@@ -149,7 +149,7 @@ func (p player) GetOptions() []tcp.ReplayerOption {
 
 // GetProtocol returns tcp.Protocol for bufio.Scanner.
 // If protocol is not defined it will return bufio.ScanLines.
-func (p player) GetProtocol() tcp.Protocol {
+func (p player) Protocol() tcp.Protocol {
 	var splitFuncs = map[string]tcp.Protocol{
 		wialonips.Proto: wialonips.NewWialonIPS(),
 		egts.Proto:      egts.NewEGTS(),
@@ -179,7 +179,7 @@ func (p player) Validate() error {
 /* tcp server methods */
 
 // GetProtocol returns protocol handler according Proto property.
-func (s tcpServer) GetProtocol() tcp.Protocol {
+func (s tcpServer) Protocol() tcp.Protocol {
 	switch s.Proto {
 	case egts.Proto:
 		return egts.NewEGTS()
@@ -189,7 +189,7 @@ func (s tcpServer) GetProtocol() tcp.Protocol {
 	return egts.NewEGTS()
 }
 
-func (s tcpServer) GetOptions() []tcp.ServerOption {
+func (s tcpServer) Options() []tcp.ServerOption {
 	o := make([]tcp.ServerOption, 0, 2)
 	if viper.IsSet("tcp.timeouts") {
 		o = append(o, tcp.WithTimeout(time.Duration(s.Timeouts)*time.Second))

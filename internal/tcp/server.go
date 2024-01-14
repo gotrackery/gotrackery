@@ -113,6 +113,7 @@ func (s *Server) ListenAndServe() error {
 			e.SetName(fmt.Sprintf("%s.%s", event.CloseConnection, name))
 			go s.Handler.fireEvent(context.Background(), &s.logger, e)
 		}
+		s.srv.Shutdown(s.timeout)
 	}()
 	
 	err := s.srv.Listen()
