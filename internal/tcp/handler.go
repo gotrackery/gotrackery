@@ -71,15 +71,10 @@ func (h *Handler) subsribersNames() []string {
 	return listeners
 }
 
-// RegisterEventListener registers an event listener to get a copy of Event that handler extracted.
-// func (h *Handler) RegisterEventListener(listener event.Listener) {
-// 	h.evManager.AddListener(evName, listener)
-// }
-
 // Handle handles the tcp inbound connection.
 // It parses the tcp payload and calls the protocol handler.
 // If some useful Event is extracted from the packet,
-// it will be sent to the listeners what previously was registered by calling RegisterEventListener.
+// it will be sent to the listeners what previously was registered by calling RegisterEventSubscriber.
 func (h *Handler) Handle(conn tcpserver.Connection) {
 	session := gonanoid.Must(8)
 
@@ -166,7 +161,7 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 	}
 
 	if scanner.Err() != nil && scanner.Err() != io.EOF {
-		l.Error().Err(scanner.Err()).Msg("scanner error") //error="read tcp4 10.203.44.11:1328->185.9.185.4:38726: i/o timeout"
+		l.Error().Err(scanner.Err()).Msg("scanner error")
 		return
 	}
 }
@@ -174,7 +169,7 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 func (h *Handler) fireEvent(ctx context.Context, l *zerolog.Logger, event event.Event) {
 	reply := make(chan ev.Reply)
 	defer close(reply)
-	retrying := retryFire(ctx, l, h.evManager.FireEvent, reply)
+	retrying := h.retryFire(ctx, l, h.evManager.FireEvent, reply)
 
 	go retrying(event)
 
@@ -193,7 +188,7 @@ func (h *Handler) fireEvent(ctx context.Context, l *zerolog.Logger, event event.
 
 type fireraiser func(event event.Event) error
 
-func retryFire(ctx context.Context, l *zerolog.Logger, fireraiser fireraiser, reply chan ev.Reply) fireraiser {
+func (h *Handler) retryFire(ctx context.Context, l *zerolog.Logger, fireraiser fireraiser, reply chan ev.Reply) fireraiser {
 	return func(evnt event.Event) error {
 		for try := 1; ; try++ {
 			err := fireraiser(evnt)
@@ -205,8 +200,19 @@ func retryFire(ctx context.Context, l *zerolog.Logger, fireraiser fireraiser, re
 			}
 
 			/*
-				TODO: in this place, by creating a new event through the fireraiser, you can call the event of some notifier to notify about an error
-			*/
+				info: in this place, by creating a new event through the fireraiser, you can call the event of some notifier to notify about an error
+
+				go func(){
+					for _, name := range h.subsribersNames() {
+						e := new(ev.GenericEvent)
+						e.SetName(fmt.Sprintf("%s.%s", ev.NotifyError, name))
+						e.SetData(event.M{"message": fmt.Sprintf(`event "%s" failed attempt #[%d]`, evnt.Name(), try)})
+						if err := fireraiser(e); err != nil {
+							l.Err(err).Msg("notify error")
+						}
+					}
+
+				}() */
 
 			delay := time.Second << uint(try)
 			timer := time.NewTimer(delay)

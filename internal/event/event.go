@@ -41,7 +41,9 @@ type Reply struct {
 }
 
 type Name string
+
 const (
 	PositionRecived Name = "position.received"
 	CloseConnection Name = "close.connection"
+	// NotifyError     Name = "notify.error"
 )

@@ -18,7 +18,6 @@ var (
 )
 
 type DB struct {
-	// logger *zerolog.Logger
 	db *pgxpool.Pool
 }
 

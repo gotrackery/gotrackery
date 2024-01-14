@@ -84,7 +84,13 @@ type samplePGDatabase struct {
 
 type consumers struct {
 	SamplePG samplePGDatabase `mapstructure:"sample-db" yaml:"sample-db"`
+	// Notifier telegram
 }
+
+// type telegram struct {
+// 	Token  string
+// 	ChatID int
+// }
 
 func (c consumers) MarshalZerologObject(e *zerolog.Event) {
 	e.Str("sample-db", c.SamplePG.URI)
@@ -224,21 +230,14 @@ func (c consumers) Subscribers() (subs []event.Subscriber, err error) {
 	if err != nil {
 		return nil, err
 	}
+	/*
+		telegram, err := c.Notifier.Subscriber()
+		if err != nil {
+			return nil, err
+		}
+	*/
 	return append(make([]event.Subscriber, 0), postgres), nil
 }
-
-
-// func (c consumers) GetConsumers(l *zerolog.Logger) (lsnr []event.Listener, err error) {
-// 	lsnr = make([]event.Listener, 0)
-// 	sampleDB, err := c.SamplePG.GetConsumer(l)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("get sample db consumer: %w", err)
-// 	}
-// 	if sampleDB != nil {
-// 		lsnr = append(lsnr, sampleDB)
-// 	}
-// 	return lsnr, nil
-// }
 
 func (s samplePGDatabase) Subscriber() (sub event.Subscriber, err error) {
 	if !viper.IsSet("consumers.sample-db.uri") {
