@@ -11,7 +11,6 @@ require (
 	github.com/maurice2k/tcpserver v1.2.0
 	github.com/peterstace/simplefeatures v0.41.0
 	github.com/rs/zerolog v1.29.0
-	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
@@ -62,6 +61,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sagikazarmark/crypt v0.9.0 // indirect
+	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3 // indirect
 	github.com/sigurn/crc8 v0.0.0-20220107193325-2243fe600f9f // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.0 // indirect

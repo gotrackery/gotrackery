@@ -35,7 +35,7 @@ func (w *WialonIPS) NewFrameSplitter() common.FrameSplitter {
 
 // Respond returns the result of parsing the WialonIPS data.
 func (w *WialonIPS) Respond(s *internal.Session, bytes []byte) (res tcp.Result, err error) {
-	pkg := wialonips.NewPacket(w.getVersion(s), s.GetDevice())
+	pkg := wialonips.NewPacket(w.getVersion(s), s.Device())
 	err = pkg.Decode(bytes)
 	if pkg.Type == wialonips.LoginPacket {
 		s.SetDevice(pkg.IMEI)

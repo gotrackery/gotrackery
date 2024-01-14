@@ -219,19 +219,28 @@ func (s tcpServer) Validate() error {
 
 /* consumers methods */
 
-func (c consumers) GetConsumers(l *zerolog.Logger) (lsnr []event.Listener, err error) {
-	lsnr = make([]event.Listener, 0)
-	sampleDB, err := c.SamplePG.GetConsumer(l)
+func (c consumers) Subscribers() (subs []event.Subscriber, err error) {
+	postgres, err := c.SamplePG.Subscriber()
 	if err != nil {
-		return nil, fmt.Errorf("get sample db consumer: %w", err)
+		return nil, err
 	}
-	if sampleDB != nil {
-		lsnr = append(lsnr, sampleDB)
-	}
-	return lsnr, nil
+	return append(make([]event.Subscriber, 0), postgres), nil
 }
 
-func (s samplePGDatabase) GetConsumer(l *zerolog.Logger) (lsnr event.Listener, err error) {
+
+// func (c consumers) GetConsumers(l *zerolog.Logger) (lsnr []event.Listener, err error) {
+// 	lsnr = make([]event.Listener, 0)
+// 	sampleDB, err := c.SamplePG.GetConsumer(l)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("get sample db consumer: %w", err)
+// 	}
+// 	if sampleDB != nil {
+// 		lsnr = append(lsnr, sampleDB)
+// 	}
+// 	return lsnr, nil
+// }
+
+func (s samplePGDatabase) Subscriber() (sub event.Subscriber, err error) {
 	if !viper.IsSet("consumers.sample-db.uri") {
 		return nil, nil
 	}
@@ -250,7 +259,7 @@ func (s samplePGDatabase) GetConsumer(l *zerolog.Logger) (lsnr event.Listener, e
 		return nil, fmt.Errorf("ping sample db: %w", err)
 	}
 
-	db, err = sampledb.NewDB(l, p)
+	db, err = sampledb.NewDB(p)
 	if err != nil {
 		return nil, fmt.Errorf("create sample listener: %w", err)
 	}

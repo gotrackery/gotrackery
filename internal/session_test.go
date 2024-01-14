@@ -13,13 +13,13 @@ func TestSession(t *testing.T) {
 	assert.Equal(t, s.Get("test"), "test", "Get should return test")
 
 	s = &Session{}
-	assert.Equal(t, s.GetDevice(), "", "GetDevice should return empty string, if not set")
+	assert.Equal(t, s.Device(), "", "Device should return empty string, if not set")
 	s.SetDevice("device")
-	assert.Equal(t, s.GetDevice(), "device", "GetDevice should return device, if set")
+	assert.Equal(t, s.Device(), "device", "Device should return device, if set")
 	s = NewSession()
-	assert.Equal(t, s.GetDevice(), "", "GetDevice should return empty string")
+	assert.Equal(t, s.Device(), "", "Device should return empty string")
 	s.SetDevice("device")
-	assert.Equal(t, s.GetDevice(), "device", "GetDevice should return device")
+	assert.Equal(t, s.Device(), "device", "Device should return device")
 
 	f := func(session *Session) {
 		session.Set("internal", "test")
