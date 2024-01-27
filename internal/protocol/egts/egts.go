@@ -35,7 +35,7 @@ func (e *EGTS) Respond(s *internal.Session, bytes []byte) (res tcp.Result, err e
 	pkg := egts.Packet{}
 	_ = pkg.Decode(bytes)
 
-	device := e.getDevice(&pkg)
+	device := e.device(&pkg)
 	if device != "" {
 		s.SetDevice(device)
 	}
@@ -48,7 +48,7 @@ func (e *EGTS) Respond(s *internal.Session, bytes []byte) (res tcp.Result, err e
 	return
 }
 
-func (e *EGTS) getDevice(pkg *egts.Packet) string {
+func (e *EGTS) device(pkg *egts.Packet) string {
 	if pkg.ServicesFrameData == nil {
 		return ""
 	}

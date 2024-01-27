@@ -2,22 +2,38 @@ package sampledb
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/gookit/event"
 	ev "github.com/gotrackery/gotrackery/internal/event"
+	
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rs/zerolog"
 )
 
-var _ event.Listener = (*DB)(nil)
+var (
+	_ event.Listener   = (*DB)(nil)
+	_ event.Subscriber = (*DB)(nil)
+)
 
 type DB struct {
-	logger *zerolog.Logger
-	db     *pgxpool.Pool
+	db *pgxpool.Pool
 }
 
-func NewDB(l *zerolog.Logger, db *pgxpool.Pool) (*DB, error) {
+const (
+	SELF_NAME = "postgres"
+)
+
+func (d *DB) String() string {
+	return SELF_NAME
+}
+
+func (d *DB) close() {
+	d.db.Close()
+}
+
+func NewDB(db *pgxpool.Pool) (*DB, error) {
 	if db == nil {
 		panic("missing *pgxpool.Pool, parameter must not be nil")
 	}
@@ -27,18 +43,42 @@ func NewDB(l *zerolog.Logger, db *pgxpool.Pool) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{logger: l, db: db}, nil
+	return &DB{db: db}, nil
+}
+
+func (d *DB) SubscribedEvents() map[string]any {
+	return map[string]any{
+		fmt.Sprintf("%s.%s", ev.PositionRecived, SELF_NAME): d,
+		fmt.Sprintf("%s.%s", ev.CloseConnection, SELF_NAME): d,
+	}
 }
 
 func (d *DB) Handle(e event.Event) (err error) {
-	pos := e.(*ev.GenericEvent).GetPosition()
-	tr, err := CreateFromCommon(pos)
-	if err != nil {
-		return err
+	eve, ok := e.(*ev.GenericEvent)
+	if !ok || eve == nil {
+		return fmt.Errorf("GenericEvent not transferred")
 	}
-	err = d.insert(context.Background(), tr)
-	if err != nil {
-		return
+	name, ok := strings.CutSuffix(eve.Name(), "."+SELF_NAME)
+	if !ok {
+		return fmt.Errorf("event not found for listner: %s", SELF_NAME)
+	}
+	switch name {
+	case string(ev.PositionRecived):
+		pos := eve.Position()
+		if pos == nil {
+			return fmt.Errorf("position not specified")
+		}
+		tr, err := CreateFromCommon(*pos)
+		if err != nil {
+			return fmt.Errorf("create position from common: %w", err)
+		}
+		err = d.insert(context.Background(), tr)
+		if err != nil {
+			return fmt.Errorf("insert position: %w", err)
+		}
+
+	case string(ev.CloseConnection):
+		d.close()
 	}
 
 	return nil

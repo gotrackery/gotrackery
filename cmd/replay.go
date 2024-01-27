@@ -54,8 +54,8 @@ var replayCmd = &cobra.Command{
 
 		replayer := tcp.NewReplayer(
 			c.Player.Address,
-			c.Player.GetProtocol(),
-			c.Player.GetOptions()...,
+			c.Player.Protocol(),
+			c.Player.Options()...,
 		)
 		player.Run(c.Player.InPath, c.Player.FileMask, replayer, c.Player.Workers)
 

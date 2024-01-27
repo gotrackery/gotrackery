@@ -84,7 +84,13 @@ type samplePGDatabase struct {
 
 type consumers struct {
 	SamplePG samplePGDatabase `mapstructure:"sample-db" yaml:"sample-db"`
+	// Notifier telegram
 }
+
+// type telegram struct {
+// 	Token  string
+// 	ChatID int
+// }
 
 func (c consumers) MarshalZerologObject(e *zerolog.Event) {
 	e.Str("sample-db", c.SamplePG.URI)
@@ -130,7 +136,7 @@ func (l logging) ZerologLevel() zerolog.Level {
 
 /* player methods */
 
-func (p player) GetOptions() []tcp.ReplayerOption {
+func (p player) Options() []tcp.ReplayerOption {
 	o := make([]tcp.ReplayerOption, 0, 2)
 	if viper.IsSet("player.delay") {
 		o = append(o, tcp.WithDelay(p.Delay))
@@ -143,7 +149,7 @@ func (p player) GetOptions() []tcp.ReplayerOption {
 
 // GetProtocol returns tcp.Protocol for bufio.Scanner.
 // If protocol is not defined it will return bufio.ScanLines.
-func (p player) GetProtocol() tcp.Protocol {
+func (p player) Protocol() tcp.Protocol {
 	var splitFuncs = map[string]tcp.Protocol{
 		wialonips.Proto: wialonips.NewWialonIPS(),
 		egts.Proto:      egts.NewEGTS(),
@@ -173,7 +179,7 @@ func (p player) Validate() error {
 /* tcp server methods */
 
 // GetProtocol returns protocol handler according Proto property.
-func (s tcpServer) GetProtocol() tcp.Protocol {
+func (s tcpServer) Protocol() tcp.Protocol {
 	switch s.Proto {
 	case egts.Proto:
 		return egts.NewEGTS()
@@ -183,7 +189,7 @@ func (s tcpServer) GetProtocol() tcp.Protocol {
 	return egts.NewEGTS()
 }
 
-func (s tcpServer) GetOptions() []tcp.ServerOption {
+func (s tcpServer) Options() []tcp.ServerOption {
 	o := make([]tcp.ServerOption, 0, 2)
 	if viper.IsSet("tcp.timeouts") {
 		o = append(o, tcp.WithTimeout(time.Duration(s.Timeouts)*time.Second))
@@ -219,19 +225,21 @@ func (s tcpServer) Validate() error {
 
 /* consumers methods */
 
-func (c consumers) GetConsumers(l *zerolog.Logger) (lsnr []event.Listener, err error) {
-	lsnr = make([]event.Listener, 0)
-	sampleDB, err := c.SamplePG.GetConsumer(l)
+func (c consumers) Subscribers() (subs []event.Subscriber, err error) {
+	postgres, err := c.SamplePG.Subscriber()
 	if err != nil {
-		return nil, fmt.Errorf("get sample db consumer: %w", err)
+		return nil, err
 	}
-	if sampleDB != nil {
-		lsnr = append(lsnr, sampleDB)
-	}
-	return lsnr, nil
+	/*
+		telegram, err := c.Notifier.Subscriber()
+		if err != nil {
+			return nil, err
+		}
+	*/
+	return append(make([]event.Subscriber, 0), postgres), nil
 }
 
-func (s samplePGDatabase) GetConsumer(l *zerolog.Logger) (lsnr event.Listener, err error) {
+func (s samplePGDatabase) Subscriber() (sub event.Subscriber, err error) {
 	if !viper.IsSet("consumers.sample-db.uri") {
 		return nil, nil
 	}
@@ -250,7 +258,7 @@ func (s samplePGDatabase) GetConsumer(l *zerolog.Logger) (lsnr event.Listener, e
 		return nil, fmt.Errorf("ping sample db: %w", err)
 	}
 
-	db, err = sampledb.NewDB(l, p)
+	db, err = sampledb.NewDB(p)
 	if err != nil {
 		return nil, fmt.Errorf("create sample listener: %w", err)
 	}

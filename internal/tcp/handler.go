@@ -2,9 +2,12 @@ package tcp
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/gookit/event"
@@ -15,10 +18,6 @@ import (
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/maurice2k/tcpserver"
 	"github.com/rs/zerolog"
-)
-
-const (
-	evName = "generic.position.receive"
 )
 
 // Result is the result of handling bytes packet.
@@ -40,21 +39,42 @@ type Handler struct {
 	evManager   *event.Manager
 }
 
+const (
+	eventManagerName = "events manager"
+)
+
 // NewHandler creates a new tcp protocol handler.
 func NewHandler(l zerolog.Logger, p Protocol, idle time.Duration) (h *Handler) {
-	h = &Handler{logger: l, proto: p, IdleTimeout: idle, evManager: event.NewManager("receiver")}
+	h = &Handler{logger: l, proto: p, IdleTimeout: idle, evManager: event.NewManager(eventManagerName)}
 	return
 }
 
-// RegisterEventListener registers an event listener to get a copy of Event that handler extracted.
-func (h *Handler) RegisterEventListener(listener event.Listener) {
-	h.evManager.AddListener(evName, listener)
+func (h *Handler) RegisterEventSubscriber(sub event.Subscriber) {
+	h.logger.Debug().Str("consumer-listener", fmt.Sprintf("%s", sub)).Msg("register events subscriber")
+	h.evManager.AddSubscriber(sub)
+}
+
+func (h *Handler) subsribersNames() []string {
+	events := h.evManager.ListenedNames()
+	set := make(map[string]struct{}, len(events))
+	for n := range events {
+		names := strings.Split(n, ".")
+		name := names[len(names)-1]
+		if _, ok := set[name]; !ok {
+			set[name] = struct{}{}
+		}
+	}
+	listeners := make([]string, 0)
+	for n := range set {
+		listeners = append(listeners, n)
+	}
+	return listeners
 }
 
 // Handle handles the tcp inbound connection.
 // It parses the tcp payload and calls the protocol handler.
 // If some useful Event is extracted from the packet,
-// it will be sent to the listeners what previously was registered by calling RegisterEventListener.
+// it will be sent to the listeners what previously was registered by calling RegisterEventSubscriber.
 func (h *Handler) Handle(conn tcpserver.Connection) {
 	session := gonanoid.Must(8)
 
@@ -104,7 +124,7 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 		if err != nil {
 			l.Warn().Err(err).Msg("got protocol error")
 		}
-		l.Debug().Str("dir", "out").Str("device", session.GetDevice()).Str("bytes", hex.EncodeToString(result.Response)).Send()
+		l.Debug().Str("dir", "out").Str("device", session.Device()).Str("bytes", hex.EncodeToString(result.Response)).Send()
 
 		if len(result.Response) > 0 {
 			_, err = conn.Write(result.Response) // send result even got error
@@ -119,9 +139,18 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 		}
 
 		if result.GenericAdapter != nil {
-			err = h.fireEvent(result.GenericAdapter)
-			if err != nil {
-				l.Error().Err(err).Msg("fire event")
+			poss := result.GenericAdapter.GenericPositions()
+			for _, pos := range poss {
+				for _, name := range h.subsribersNames() {
+					e := new(ev.GenericEvent)
+					e.SetPosition(pos)
+					e.SetName(fmt.Sprintf("%s.%s", ev.PositionRecived, name))
+
+					ctx, cancel := context.WithTimeout(context.Background(), h.IdleTimeout)
+					defer cancel()
+					go h.fireEvent(ctx, l, e)
+				}
+
 			}
 		}
 	}
@@ -137,20 +166,70 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 	}
 }
 
-func (h *Handler) fireEvent(adapter gen.Adapter) error {
-	poss := adapter.GenericPositions()
-	for _, pos := range poss {
-		e := &ev.GenericEvent{
-			Position: pos,
-		}
-		e.SetName(evName)
-		err := h.evManager.FireEvent(e)
-		if err != nil {
-			// ToDo log every error separately
-			return err
-		}
-		h.logger.Debug().Str("event", evName).Object("position", pos).Msg("event fired")
-	}
+func (h *Handler) fireEvent(ctx context.Context, l *zerolog.Logger, event event.Event) {
+	reply := make(chan ev.Reply)
+	defer close(reply)
+	retrying := h.retryFire(ctx, l, h.evManager.FireEvent, reply)
 
-	return nil
+	go retrying(event)
+
+	for r := range reply {
+		if r.Error == nil {
+			l.Info().Msg(r.Message)
+			return
+		}
+		l.Err(r.Error).Msg(r.Message)
+		if r.Error != nil && r.Error == context.Canceled {
+			return
+		}
+		continue
+	}
+}
+
+type fireraiser func(event event.Event) error
+
+func (h *Handler) retryFire(ctx context.Context, l *zerolog.Logger, fireraiser fireraiser, reply chan ev.Reply) fireraiser {
+	return func(evnt event.Event) error {
+		for try := 1; ; try++ {
+			err := fireraiser(evnt)
+			if err == nil {
+				reply <- ev.Reply{
+					Message: fmt.Sprintf(`successful handle "%s" event`, evnt.Name()),
+				}
+				return nil
+			}
+
+			/*
+				info: in this place, by creating a new event through the fireraiser, you can call the event of some notifier to notify about an error
+
+				go func(){
+					for _, name := range h.subsribersNames() {
+						e := new(ev.GenericEvent)
+						e.SetName(fmt.Sprintf("%s.%s", ev.NotifyError, name))
+						e.SetData(event.M{"message": fmt.Sprintf(`event "%s" failed attempt #[%d]`, evnt.Name(), try)})
+						if err := fireraiser(e); err != nil {
+							l.Err(err).Msg("notify error")
+						}
+					}
+
+				}() */
+
+			delay := time.Second << uint(try)
+			timer := time.NewTimer(delay)
+			defer timer.Stop()
+			reply <- ev.Reply{
+				Error:   err,
+				Message: fmt.Sprintf(`event "%s" failed attempt #[%d] | retrying after: [%s]`, evnt.Name(), try, delay),
+			}
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				reply <- ev.Reply{
+					Error:   ctx.Err(),
+					Message: fmt.Sprintf(`retrying event "%s" stopped via context`, evnt.Name()),
+				}
+				return ctx.Err()
+			}
+		}
+	}
 }

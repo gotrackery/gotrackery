@@ -24,3 +24,6 @@
 gen/*
 !gen/.keep
 temp/*
+
+# fork description file
+description.txt

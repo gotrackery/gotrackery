@@ -45,20 +45,22 @@ Example:
 		logger.Info().Object("tcp-server", c.TCPServer).Msg("server config")
 		logger.Info().Object("consumers", c.Consumers).Msg("consumers config")
 
-		srv, err := tcp.NewServer(logger, c.TCPServer.Address, c.TCPServer.GetOptions()...)
+		srv, err := tcp.NewServer(logger, c.TCPServer.Address, c.TCPServer.Options()...)
 		if err != nil {
 			return fmt.Errorf("create tcp server: %w", err)
 		}
 
-		srv.SetProtocol(c.TCPServer.GetProtocol())
-		cons, err := c.Consumers.GetConsumers(&logger)
+		srv.SetProtocol(c.TCPServer.Protocol())
+
+		subs, err := c.Consumers.Subscribers()
 		if err != nil {
-			return fmt.Errorf("get consumers: %w", err)
+			return fmt.Errorf("get events consumers-subscribers: %w", err)
 		}
 
-		for _, con := range cons {
-			srv.Handler.RegisterEventListener(con)
+		for _, sub := range subs {
+			srv.Handler.RegisterEventSubscriber(sub)
 		}
+
 		err = srv.ListenAndServe()
 		if err != nil {
 			return fmt.Errorf("start tcp server: %w", err)

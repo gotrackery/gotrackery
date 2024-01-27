@@ -40,7 +40,7 @@ func (s *Session) SetDevice(dev string) {
 }
 
 // GetDevice returns the device id from session context.
-func (s *Session) GetDevice() string {
+func (s *Session) Device() string {
 	if s.ctx == nil {
 		return ""
 	}
