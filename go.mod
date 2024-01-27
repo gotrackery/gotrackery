@@ -1,6 +1,6 @@
 module github.com/gotrackery/gotrackery
 
-go 1.20
+go 1.21
 
 require (
 	github.com/gookit/event v1.0.6

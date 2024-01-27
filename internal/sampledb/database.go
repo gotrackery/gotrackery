@@ -7,7 +7,7 @@ import (
 
 	"github.com/gookit/event"
 	ev "github.com/gotrackery/gotrackery/internal/event"
-	
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -48,8 +48,8 @@ func NewDB(db *pgxpool.Pool) (*DB, error) {
 
 func (d *DB) SubscribedEvents() map[string]any {
 	return map[string]any{
-		fmt.Sprintf("%s.%s", ev.PositionRecived, SELF_NAME): d,
-		fmt.Sprintf("%s.%s", ev.CloseConnection, SELF_NAME): d,
+		fmt.Sprintf("%s.%s", ev.PositionReceived, SELF_NAME): d,
+		fmt.Sprintf("%s.%s", ev.CloseConnection, SELF_NAME):  d,
 	}
 }
 
@@ -63,7 +63,7 @@ func (d *DB) Handle(e event.Event) (err error) {
 		return fmt.Errorf("event not found for listner: %s", SELF_NAME)
 	}
 	switch name {
-	case string(ev.PositionRecived):
+	case string(ev.PositionReceived):
 		pos := eve.Position()
 		if pos == nil {
 			return fmt.Errorf("position not specified")

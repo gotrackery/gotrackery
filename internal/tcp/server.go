@@ -107,15 +107,18 @@ func (s *Server) SetProtocol(p Protocol) {
 
 // ListenAndServe starts the TCP server.
 func (s *Server) ListenAndServe() error {
-	defer func(){
+	defer func() {
 		for _, name := range s.Handler.subsribersNames() {
 			e := new(event.GenericEvent)
 			e.SetName(fmt.Sprintf("%s.%s", event.CloseConnection, name))
 			go s.Handler.fireEvent(context.Background(), &s.logger, e)
 		}
-		s.srv.Shutdown(s.timeout)
+		err := s.srv.Shutdown(s.timeout)
+		if err != nil {
+			return
+		}
 	}()
-	
+
 	err := s.srv.Listen()
 
 	if err != nil {

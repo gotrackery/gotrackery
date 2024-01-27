@@ -144,7 +144,7 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 				for _, name := range h.subsribersNames() {
 					e := new(ev.GenericEvent)
 					e.SetPosition(pos)
-					e.SetName(fmt.Sprintf("%s.%s", ev.PositionRecived, name))
+					e.SetName(fmt.Sprintf("%s.%s", ev.PositionReceived, name))
 
 					ctx, cancel := context.WithTimeout(context.Background(), h.IdleTimeout)
 					defer cancel()
@@ -169,9 +169,14 @@ func (h *Handler) handle(l *zerolog.Logger, conn tcpserver.Connection) {
 func (h *Handler) fireEvent(ctx context.Context, l *zerolog.Logger, event event.Event) {
 	reply := make(chan ev.Reply)
 	defer close(reply)
-	retrying := h.retryFire(ctx, l, h.evManager.FireEvent, reply)
+	retrying := h.retryFire(ctx, h.evManager.FireEvent, reply)
 
-	go retrying(event)
+	go func() {
+		err := retrying(event)
+		if err != nil {
+			l.Err(err).Msg("retrying to fire event")
+		}
+	}()
 
 	for r := range reply {
 		if r.Error == nil {
@@ -188,7 +193,7 @@ func (h *Handler) fireEvent(ctx context.Context, l *zerolog.Logger, event event.
 
 type fireraiser func(event event.Event) error
 
-func (h *Handler) retryFire(ctx context.Context, l *zerolog.Logger, fireraiser fireraiser, reply chan ev.Reply) fireraiser {
+func (h *Handler) retryFire(ctx context.Context, fireraiser fireraiser, reply chan ev.Reply) fireraiser {
 	return func(evnt event.Event) error {
 		for try := 1; ; try++ {
 			err := fireraiser(evnt)
